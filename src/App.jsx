@@ -1,11 +1,16 @@
+
+import FundoCidade from "./components/site/FundoCidade";
+
 function App() {
   return (
-    <main className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <h1 className="text-5xl font-bold text-emerald-400">
-        Cityzer
-      </h1>
-    </main>
-  )
+    <div className="relative isolate min-h-dvh bg-cityzer-fundo">
+      <FundoCidade />
+
+      <main className="relative z-10 min-h-dvh">
+        {/* Os componentes do site serão adicionados aqui */}
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;

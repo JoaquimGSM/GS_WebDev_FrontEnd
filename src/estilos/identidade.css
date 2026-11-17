@@ -1,0 +1,35 @@
+
+@theme {
+  --color-cityzer-fundo: #071119;
+  --color-cityzer-superficie: #10252b;
+  --color-cityzer-verde: #50e8b0;
+  --color-cityzer-ciano: #16c6cc;
+  --color-cityzer-texto: #f3f7f8;
+  --color-cityzer-suave: #b9cbd0;
+}
+
+:root {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+
+  --cityzer-vidro: rgba(7, 17, 25, 0.82);
+  --cityzer-borda: rgba(80, 232, 176, 0.40);
+  --cityzer-sombra: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background-color: var(--color-cityzer-fundo);
+  color: var(--color-cityzer-texto);
+}

@@ -5,6 +5,7 @@ import {
   TileLayer,
   ZoomControl,
   CircleMarker,
+  Popup,
   useMapEvents,
 } from "react-leaflet";
 
@@ -16,9 +17,16 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+import FiltrosOcorrencias from "./FiltrosOcorrencias";
+
+import {
+  CATEGORIAS_OCORRENCIAS,
+  OCORRENCIAS_DEMONSTRACAO,
+} from "../../dados/ocorrenciasDemonstracao";
+
 const CENTRO_SAO_PAULO = [-23.5505, -46.6333];
 
-// Captura a localização escolhida no mapa
+// Componente responsável pelos cliques no mapa
 function CapturarLocalizacao({ ativo, onSelecionar }) {
   useMapEvents({
     click(evento) {
@@ -35,7 +43,21 @@ function CapturarLocalizacao({ ativo, onSelecionar }) {
 
 function TelaMapa({ onVoltar, onRegistrar }) {
   const [modoSelecao, setModoSelecao] = useState(false);
-  const [localSelecionado, setLocalSelecionado] = useState(null);
+
+  const [localSelecionado, setLocalSelecionado] =
+    useState(null);
+
+  const [categoriaAtiva, setCategoriaAtiva] =
+    useState("todos");
+
+  // Filtragem das ocorrências demonstrativas
+  const ocorrenciasFiltradas =
+    categoriaAtiva === "todos"
+      ? OCORRENCIAS_DEMONSTRACAO
+      : OCORRENCIAS_DEMONSTRACAO.filter(
+          (ocorrencia) =>
+            ocorrencia.categoria === categoriaAtiva
+        );
 
   function iniciarSelecao() {
     setLocalSelecionado(null);
@@ -60,6 +82,12 @@ function TelaMapa({ onVoltar, onRegistrar }) {
     if (!localSelecionado) return;
 
     onRegistrar(localSelecionado);
+  }
+
+  function obterCategoria(id) {
+    return CATEGORIAS_OCORRENCIAS.find(
+      (categoria) => categoria.id === id
+    );
   }
 
   return (
@@ -95,6 +123,14 @@ function TelaMapa({ onVoltar, onRegistrar }) {
         </span>
       </header>
 
+      {/* Filtros */}
+      <FiltrosOcorrencias
+        categoriaAtiva={categoriaAtiva}
+        onAlterarCategoria={setCategoriaAtiva}
+        ocorrencias={OCORRENCIAS_DEMONSTRACAO}
+        desabilitado={modoSelecao}
+      />
+
       {/* Mapa */}
       <div className="relative min-h-0 flex-1">
 
@@ -118,53 +154,107 @@ function TelaMapa({ onVoltar, onRegistrar }) {
 
           <ZoomControl position="topright" />
 
-          {/* Detectar cliques no mapa */}
+          {/* Captura do ponto de registro */}
           <CapturarLocalizacao
             ativo={modoSelecao}
             onSelecionar={setLocalSelecionado}
           />
 
-          {/* Ponto selecionado */}
+          {/* Ocorrências simuladas */}
+          {!modoSelecao &&
+            ocorrenciasFiltradas.map((ocorrencia) => {
+              const categoria = obterCategoria(
+                ocorrencia.categoria
+              );
+
+              return (
+                <CircleMarker
+                  key={ocorrencia.id}
+                  center={ocorrencia.posicao}
+                  radius={9}
+                  pathOptions={{
+                    color: "#071119",
+                    weight: 2,
+                    fillColor: categoria?.cor ?? "#50E8B0",
+                    fillOpacity: 0.95,
+                    bubblingMouseEvents: false,
+                  }}
+                >
+                  <Popup>
+                    <div className="min-w-40 text-slate-900">
+                      <strong>
+                        {ocorrencia.titulo}
+                      </strong>
+
+                      <p className="my-2 text-xs">
+                        {ocorrencia.descricao}
+                      </p>
+
+                      <small className="font-semibold text-slate-600">
+                        Ocorrência fictícia — demonstração
+                      </small>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              );
+            })}
+
+          {/* Marcador da localização escolhida */}
           {modoSelecao && localSelecionado && (
             <CircleMarker
               center={localSelecionado}
-              radius={9}
+              radius={10}
               pathOptions={{
                 color: "#071119",
                 weight: 3,
-                fillColor: "#50e8b0",
+                fillColor: "#50E8B0",
                 fillOpacity: 1,
+                bubblingMouseEvents: false,
               }}
             />
           )}
         </MapContainer>
 
-        {/* Orientação sobre a seleção */}
+        {/* Mensagem durante seleção */}
         {modoSelecao && (
           <div className="pointer-events-none absolute bottom-6 left-3 right-3 z-500 rounded-xl border border-cityzer-verde/30 bg-cityzer-fundo/90 p-3 text-center shadow-lg">
 
             <p className="text-xs leading-relaxed text-cityzer-texto">
               {localSelecionado
-                ? "Localização marcada. Você pode tocar em outro ponto para alterá-la."
+                ? "Localização marcada. Toque em outro ponto para alterar."
                 : "Toque no mapa para marcar onde aconteceu o problema."}
             </p>
-
           </div>
         )}
       </div>
 
-      {/* Controles inferiores */}
+      {/* Rodapé */}
       <footer className="relative z-10 shrink-0 border-t border-white/10 bg-cityzer-superficie p-3">
 
         {!modoSelecao ? (
-          <button
-            type="button"
-            onClick={iniciarSelecao}
-            className="flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300"
-          >
-            <Plus size={19} />
-            Registrar ocorrência
-          </button>
+          <div className="space-y-2">
+
+            {/* Quantidade de ocorrências filtradas */}
+            <p
+              aria-live="polite"
+              className="text-center text-[11px] text-cityzer-suave"
+            >
+              {ocorrenciasFiltradas.length}{" "}
+              {ocorrenciasFiltradas.length === 1
+                ? "ocorrência fictícia exibida"
+                : "ocorrências fictícias exibidas"}
+            </p>
+
+            <button
+              type="button"
+              onClick={iniciarSelecao}
+              className="flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300"
+            >
+              <Plus size={19} />
+              Registrar ocorrência
+            </button>
+
+          </div>
         ) : (
           <div className="space-y-3">
 

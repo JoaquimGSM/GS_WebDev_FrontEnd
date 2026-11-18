@@ -1,74 +1,53 @@
-import { MapPinned } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import TelaBoasVindas from "./TelaBoasVindas";
 
 function Aplicativo() {
-  return (
-    <div
-      className="
-        relative flex min-h-full
-        flex-col items-center justify-center
-        overflow-hidden
-        bg-cityzer-fundo
-        px-6 text-center
-      "
-    >
-      {/* Iluminação decorativa */}
-      <div
-        aria-hidden="true"
-        className="
-          pointer-events-none
-          absolute left-1/2 top-1/2
-          h-64 w-64
-          -translate-x-1/2 -translate-y-1/2
-          rounded-full
-          bg-cityzer-verde/10
-          blur-[75px]
-        "
+  const [telaAtual, setTelaAtual] = useState("boas-vindas");
+
+  function navegarPara(tela) {
+    setTelaAtual(tela);
+  }
+
+  function voltar() {
+    setTelaAtual("boas-vindas");
+  }
+
+  if (telaAtual === "boas-vindas") {
+    return (
+      <TelaBoasVindas
+        onEntrar={() => navegarPara("login")}
+        onCriarConta={() => navegarPara("cadastro")}
       />
+    );
+  }
 
-      {/* Identidade do aplicativo */}
-      <div className="relative z-10 flex flex-col items-center">
-        <div
-          className="
-            mb-6 flex h-20 w-20
-            items-center justify-center
-            rounded-[25px]
-            border border-cityzer-verde/30
-            bg-cityzer-verde/10
-            shadow-[0_0_40px_rgba(80,232,176,0.12)]
-          "
-        >
-          <MapPinned
-            size={40}
-            strokeWidth={1.6}
-            className="text-cityzer-verde"
-          />
-        </div>
+  // Telas temporárias até implementarmos os formulários
+  const titulo = telaAtual === "login" ? "Entrar" : "Criar conta";
 
-        <h1
-          className="
-            text-4xl font-extrabold
-            tracking-tight text-cityzer-texto
-          "
-        >
-          City<span className="text-cityzer-verde">zer</span>
+  return (
+    <section className="flex min-h-full flex-col bg-cityzer-fundo px-6 py-6">
+
+      <button
+        type="button"
+        onClick={voltar}
+        className="flex w-fit cursor-pointer items-center gap-2 text-sm text-cityzer-suave hover:text-cityzer-verde"
+      >
+        <ArrowLeft size={18} />
+        Voltar
+      </button>
+
+      <div className="flex flex-1 flex-col items-center justify-center text-center">
+        <h1 className="text-2xl font-bold text-cityzer-texto">
+          {titulo}
         </h1>
 
-        <p className="mt-3 text-sm text-cityzer-suave">
-          Sua cidade mais conectada.
+        <p className="mt-4 text-sm leading-relaxed text-cityzer-suave">
+          Esta tela será implementada nos próximos passos.
         </p>
       </div>
 
-      {/* Indicador temporário */}
-      <p
-        className="
-          absolute bottom-8 left-0 right-0
-          text-center text-[11px]
-          tracking-wider text-cityzer-suave/70
-        "
-      >
-        INTERFACE EM DESENVOLVIMENTO
-      </p>
-    </div>
+    </section>
   );
 }
 

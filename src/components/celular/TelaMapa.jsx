@@ -14,6 +14,7 @@ import {
   Plus,
   X,
   ArrowRight,
+  ClipboardList,
 } from "lucide-react";
 
 import FiltrosOcorrencias from "./FiltrosOcorrencias";
@@ -31,7 +32,6 @@ function CapturarLocalizacao({ ativo, onSelecionar }) {
       if (!ativo) return;
 
       const { lat, lng } = evento.latlng;
-
       onSelecionar([lat, lng]);
     },
   });
@@ -43,15 +43,14 @@ function TelaMapa({
   onVoltar,
   onRegistrar,
   onAbrirDetalhes,
+  onAbrirMinhas,
   categoriaAtiva,
   onAlterarCategoria,
 }) {
   const [modoSelecao, setModoSelecao] = useState(false);
-
   const [localSelecionado, setLocalSelecionado] =
     useState(null);
 
-  // Filtragem por categoria
   const ocorrenciasFiltradas =
     categoriaAtiva === "todos"
       ? OCORRENCIAS_DEMONSTRACAO
@@ -132,7 +131,7 @@ function TelaMapa({
         desabilitado={modoSelecao}
       />
 
-      {/* Área do mapa */}
+      {/* Mapa */}
       <div className="relative min-h-0 flex-1">
 
         <MapContainer
@@ -155,13 +154,13 @@ function TelaMapa({
 
           <ZoomControl position="topright" />
 
-          {/* Selecionar localização */}
+          {/* Seleção de localização */}
           <CapturarLocalizacao
             ativo={modoSelecao}
             onSelecionar={setLocalSelecionado}
           />
 
-          {/* Marcadores de demonstração */}
+          {/* Marcadores fictícios */}
           {!modoSelecao &&
             ocorrenciasFiltradas.map((ocorrencia) => {
               const categoria = obterCategoria(
@@ -176,7 +175,8 @@ function TelaMapa({
                   pathOptions={{
                     color: "#071119",
                     weight: 2,
-                    fillColor: categoria?.cor ?? "#50E8B0",
+                    fillColor:
+                      categoria?.cor ?? "#50E8B0",
                     fillOpacity: 0.95,
                     bubblingMouseEvents: false,
                   }}
@@ -188,7 +188,7 @@ function TelaMapa({
               );
             })}
 
-          {/* Local escolhido para registro */}
+          {/* Marcador para novo registro */}
           {modoSelecao && localSelecionado && (
             <CircleMarker
               center={localSelecionado}
@@ -204,10 +204,9 @@ function TelaMapa({
           )}
         </MapContainer>
 
-        {/* Orientação durante a seleção */}
+        {/* Mensagem de seleção */}
         {modoSelecao && (
           <div className="pointer-events-none absolute bottom-6 left-3 right-3 z-500 rounded-xl border border-cityzer-verde/30 bg-cityzer-fundo/90 p-3 text-center shadow-lg">
-
             <p className="text-xs leading-relaxed text-cityzer-texto">
               {localSelecionado
                 ? "Localização marcada. Toque em outro ponto para alterar."
@@ -221,7 +220,7 @@ function TelaMapa({
       <footer className="relative z-10 shrink-0 border-t border-white/10 bg-cityzer-superficie p-3">
 
         {!modoSelecao ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
 
             <p
               aria-live="polite"
@@ -233,15 +232,28 @@ function TelaMapa({
                 : "ocorrências fictícias exibidas"}
             </p>
 
-            <button
-              type="button"
-              onClick={iniciarSelecao}
-              className="flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300"
-            >
-              <Plus size={19} />
-              Registrar ocorrência
-            </button>
+            {/* Navegação principal do mapa */}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
 
+              <button
+                type="button"
+                onClick={onAbrirMinhas}
+                className="flex min-h-12 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-cityzer-verde/40 bg-cityzer-fundo px-3 text-xs font-semibold text-cityzer-verde"
+              >
+                <ClipboardList size={17} />
+                Minhas
+              </button>
+
+              <button
+                type="button"
+                onClick={iniciarSelecao}
+                className="flex min-h-12 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-cityzer-verde px-2 text-xs font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300"
+              >
+                <Plus size={18} className="shrink-0" />
+                Registrar ocorrência
+              </button>
+
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -253,7 +265,6 @@ function TelaMapa({
             </p>
 
             <div className="flex gap-2">
-
               <button
                 type="button"
                 onClick={cancelarSelecao}
@@ -272,7 +283,6 @@ function TelaMapa({
                 Continuar
                 <ArrowRight size={15} />
               </button>
-
             </div>
           </div>
         )}

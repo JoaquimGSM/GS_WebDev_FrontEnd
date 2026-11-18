@@ -5,29 +5,37 @@ import {
   Info,
   MapPinned,
   ShieldCheck,
+  CheckCircle2,
+  ChevronRight,
 } from "lucide-react";
 
 import {
   CATEGORIAS_OCORRENCIAS,
 } from "../../dados/ocorrenciasDemonstracao";
 
-function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
+function DetalhesOcorrencia({
+  ocorrencia,
+  respostaDemonstracao,
+  onVoltar,
+  onAbrirConfirmacao,
+}) {
   const categoria = CATEGORIAS_OCORRENCIAS.find(
     (item) => item.id === ocorrencia.categoria
   );
 
   const [latitude, longitude] = ocorrencia.posicao;
-
   const corCategoria = categoria?.cor ?? "#50E8B0";
+
+  const jaRespondeu = respostaDemonstracao !== null;
 
   return (
     <section className="flex min-h-full flex-col bg-cityzer-fundo px-5 pb-7 pt-4">
 
-      {/* Navegação */}
+      {/* Voltar */}
       <button
         type="button"
         onClick={onVoltar}
-        className="flex w-fit cursor-pointer items-center gap-2 text-sm text-cityzer-suave transition-colors hover:text-cityzer-verde"
+        className="flex w-fit cursor-pointer items-center gap-2 text-sm text-cityzer-suave hover:text-cityzer-verde"
       >
         <ArrowLeft size={18} />
         Voltar ao mapa
@@ -35,7 +43,6 @@ function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
 
       {/* Cabeçalho */}
       <div className="mb-6 mt-7">
-
         <div
           className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border"
           style={{
@@ -61,7 +68,7 @@ function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
           {categoria?.nome ?? "Ocorrência"}
         </span>
 
-        <h1 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-cityzer-texto">
+        <h1 className="mt-4 text-2xl font-bold leading-tight text-cityzer-texto">
           {ocorrencia.titulo}
         </h1>
 
@@ -70,9 +77,8 @@ function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
         </p>
       </div>
 
-      {/* Status demonstrativo */}
+      {/* Aviso de demonstração */}
       <div className="mb-5 flex items-start gap-3 rounded-2xl border border-cityzer-ciano/30 bg-cityzer-ciano/10 p-4">
-
         <Info
           size={20}
           className="mt-0.5 shrink-0 text-cityzer-ciano"
@@ -84,16 +90,14 @@ function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
           </h2>
 
           <p className="mt-1 text-xs leading-relaxed text-cityzer-suave">
-            Este registro é fictício e foi criado
-            exclusivamente para testar a interface.
-            Não representa um problema real na via.
+            Este registro é fictício e não representa
+            um problema real nas ruas de São Paulo.
           </p>
         </div>
       </div>
 
       {/* Descrição */}
       <div className="mb-4 rounded-2xl border border-white/10 bg-cityzer-superficie/90 p-4">
-
         <div className="mb-3 flex items-center gap-2">
           <ClipboardList
             size={18}
@@ -105,14 +109,13 @@ function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
           </h2>
         </div>
 
-        <p className="text-sm leading-relaxed wrap-break-word text-cityzer-suave">
+        <p className="break-words text-sm leading-relaxed text-cityzer-suave">
           {ocorrencia.descricao}
         </p>
       </div>
 
       {/* Localização */}
       <div className="mb-4 rounded-2xl border border-white/10 bg-cityzer-superficie/90 p-4">
-
         <div className="mb-3 flex items-center gap-2">
           <MapPin
             size={18}
@@ -133,7 +136,6 @@ function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
         </p>
 
         <div className="mt-2 grid grid-cols-2 gap-2">
-
           <div className="min-w-0 rounded-xl bg-cityzer-fundo p-3">
             <p className="text-[11px] text-cityzer-suave">
               Latitude
@@ -153,13 +155,11 @@ function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
               {longitude.toFixed(5)}
             </p>
           </div>
-
         </div>
       </div>
 
-      {/* Validação colaborativa */}
-      <div className="mb-6 rounded-2xl border border-cityzer-verde/20 bg-cityzer-verde/5 p-4">
-
+      {/* Verificação colaborativa */}
+      <div className="mb-6 rounded-2xl border border-cityzer-verde/25 bg-cityzer-verde/5 p-4">
         <div className="mb-3 flex items-center gap-2">
           <ShieldCheck
             size={19}
@@ -171,15 +171,47 @@ function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
           </h2>
         </div>
 
-        <p className="text-xs leading-relaxed text-cityzer-suave">
-          Na versão funcional, os usuários poderão
-          confirmar se o problema continua presente
-          na via.
-        </p>
+        {jaRespondeu ? (
+          <div className="mb-4 flex items-start gap-2">
+            <CheckCircle2
+              size={18}
+              className="shrink-0 text-cityzer-verde"
+            />
 
-        <p className="mt-3 text-xs leading-relaxed text-cityzer-suave">
-          O sistema de confirmação será desenvolvido
-          em uma próxima etapa.
+            <p className="text-xs leading-relaxed text-cityzer-suave">
+              Resposta de teste nesta sessão:{" "}
+              <strong className="text-cityzer-texto">
+                {respostaDemonstracao === "sim"
+                  ? "Sim, continua"
+                  : "Não, foi resolvido"}
+              </strong>
+            </p>
+          </div>
+        ) : (
+          <p className="mb-4 text-xs leading-relaxed text-cityzer-suave">
+            Ajude a verificar se a situação ainda
+            está presente. Esta funcionalidade
+            está em modo de demonstração.
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={onAbrirConfirmacao}
+          className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-cityzer-verde/40 bg-cityzer-fundo px-3 text-xs font-semibold text-cityzer-verde transition-colors hover:bg-cityzer-verde/10"
+        >
+          <span>
+            {jaRespondeu
+              ? "Ver resposta de teste"
+              : "Verificar ocorrência (prévia)"}
+          </span>
+
+          <ChevronRight size={18} />
+        </button>
+
+        <p className="mt-3 text-[11px] leading-relaxed text-cityzer-suave">
+          A confirmação real exigirá autenticação
+          e validação das regras de negócio.
         </p>
       </div>
 
@@ -187,12 +219,11 @@ function DetalhesOcorrencia({ ocorrencia, onVoltar }) {
       <button
         type="button"
         onClick={onVoltar}
-        className="flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde px-4 font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300"
+        className="flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde px-4 font-semibold text-cityzer-fundo"
       >
         <ArrowLeft size={18} />
         Voltar ao mapa
       </button>
-
     </section>
   );
 }

@@ -7,9 +7,9 @@ import TelaMapa from "./TelaMapa";
 import FormularioOcorrencia from "./FormularioOcorrencia";
 import DetalhesOcorrencia from "./DetalhesOcorrencia";
 import TelaMinhasOcorrencias from "./TelaMinhasOcorrencias";
+import TelaConfirmacaoOcorrencia from "./TelaConfirmacaoOcorrencia";
 
-// Registros fictícios para testar o gerenciamento.
-// Não representam dados reais ou registros autenticados.
+// Dados fictícios para testar o gerenciamento
 const REGISTROS_DEMONSTRACAO = [
   {
     id: "minha-demo-1",
@@ -57,6 +57,16 @@ function Aplicativo() {
   const [minhasOcorrencias, setMinhasOcorrencias] =
     useState(() => [...REGISTROS_DEMONSTRACAO]);
 
+  // Respostas de teste, organizadas pelo ID da ocorrência
+  const [
+    respostasDemonstracao,
+    setRespostasDemonstracao,
+  ] = useState({});
+
+  const respostaDaOcorrencia = ocorrenciaSelecionada
+    ? respostasDemonstracao[ocorrenciaSelecionada.id] ?? null
+    : null;
+
   function navegarPara(tela) {
     setTelaAtual(tela);
   }
@@ -69,6 +79,10 @@ function Aplicativo() {
     setTelaAtual("mapa");
   }
 
+  function voltarParaDetalhes() {
+    setTelaAtual("detalhes");
+  }
+
   function iniciarRegistro(localizacao) {
     setLocalizacaoSelecionada(localizacao);
     setTelaAtual("registrar");
@@ -77,6 +91,42 @@ function Aplicativo() {
   function abrirDetalhes(ocorrencia) {
     setOcorrenciaSelecionada(ocorrencia);
     setTelaAtual("detalhes");
+  }
+
+  function abrirConfirmacao() {
+    if (!ocorrenciaSelecionada) return;
+
+    setTelaAtual("confirmacao");
+  }
+
+  // Registra uma resposta somente nesta sessão React.
+  // Não envia dados à API nem valida usuários reais.
+  function confirmarDemonstracao(resposta) {
+    if (!ocorrenciaSelecionada) return;
+
+    if (resposta !== "sim" && resposta !== "nao") {
+      return;
+    }
+
+    const id = ocorrenciaSelecionada.id;
+
+    setRespostasDemonstracao((anteriores) => {
+      // Impede uma segunda resposta de teste para
+      // a mesma ocorrência enquanto a página estiver aberta.
+      if (
+        Object.prototype.hasOwnProperty.call(
+          anteriores,
+          id
+        )
+      ) {
+        return anteriores;
+      }
+
+      return {
+        ...anteriores,
+        [id]: resposta,
+      };
+    });
   }
 
   function editarMinhaOcorrencia(id, alteracoes) {
@@ -106,6 +156,21 @@ function Aplicativo() {
         onAbrirMinhas={() => navegarPara("minhas")}
         categoriaAtiva={categoriaAtiva}
         onAlterarCategoria={setCategoriaAtiva}
+      />
+    );
+  }
+
+  function renderizarDetalhes() {
+    if (!ocorrenciaSelecionada) {
+      return renderizarMapa();
+    }
+
+    return (
+      <DetalhesOcorrencia
+        ocorrencia={ocorrenciaSelecionada}
+        respostaDemonstracao={respostaDaOcorrencia}
+        onVoltar={voltarParaMapa}
+        onAbrirConfirmacao={abrirConfirmacao}
       />
     );
   }
@@ -150,10 +215,15 @@ function Aplicativo() {
       );
 
     case "detalhes":
+      return renderizarDetalhes();
+
+    case "confirmacao":
       return ocorrenciaSelecionada ? (
-        <DetalhesOcorrencia
+        <TelaConfirmacaoOcorrencia
           ocorrencia={ocorrenciaSelecionada}
-          onVoltar={voltarParaMapa}
+          respostaAnterior={respostaDaOcorrencia}
+          onVoltar={voltarParaDetalhes}
+          onConfirmar={confirmarDemonstracao}
         />
       ) : (
         renderizarMapa()

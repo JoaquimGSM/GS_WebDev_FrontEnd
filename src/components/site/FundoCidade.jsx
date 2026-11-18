@@ -4,20 +4,42 @@ function FundoCidade() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
     >
-      {/* Fotografia de São Paulo */}
+      {/* Fotografia real da Ponte Estaiada */}
       <img
         src={ponteEstaiada}
         alt=""
-        className="h-full w-full object-cover object-[65%_center] md:object-center"
+        className="
+          h-full w-full
+          object-cover
+          object-[63%_center]
+          sm:object-[65%_center]
+          xl:object-center
+        "
       />
 
-      {/* Escurecimento para melhorar a leitura */}
-      <div className="absolute inset-0 bg-gradient-to-r from-cityzer-fundo/75 via-cityzer-fundo/30 to-cityzer-fundo/15" />
+      {/* Contraste para o card e para a logo */}
+      <div
+        className="
+          absolute inset-0
+          bg-linear-to-r
+          from-cityzer-fundo/80
+          via-cityzer-fundo/35
+          to-cityzer-fundo/10
+        "
+      />
 
-      {/* Degradê superior e inferior */}
-      <div className="absolute inset-0 bg-gradient-to-t from-cityzer-fundo/50 via-transparent to-cityzer-fundo/40" />
+      {/* Escurecimento das extremidades */}
+      <div
+        className="
+          absolute inset-0
+          bg-linear-to-t
+          from-cityzer-fundo/55
+          via-transparent
+          to-cityzer-fundo/40
+        "
+      />
     </div>
   );
 }

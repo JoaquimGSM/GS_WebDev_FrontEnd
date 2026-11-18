@@ -4,9 +4,15 @@ import TelaBoasVindas from "./TelaBoasVindas";
 import TelaLogin from "./TelaLogin";
 import TelaCadastro from "./TelaCadastro";
 import TelaMapa from "./TelaMapa";
+import FormularioOcorrencia from "./FormularioOcorrencia";
 
 function Aplicativo() {
   const [telaAtual, setTelaAtual] = useState("boas-vindas");
+
+  const [
+    localizacaoSelecionada,
+    setLocalizacaoSelecionada,
+  ] = useState(null);
 
   function navegarPara(tela) {
     setTelaAtual(tela);
@@ -14,6 +20,11 @@ function Aplicativo() {
 
   function voltar() {
     setTelaAtual("boas-vindas");
+  }
+
+  function iniciarRegistro(localizacao) {
+    setLocalizacaoSelecionada(localizacao);
+    setTelaAtual("registrar");
   }
 
   switch (telaAtual) {
@@ -47,6 +58,20 @@ function Aplicativo() {
       return (
         <TelaMapa
           onVoltar={voltar}
+          onRegistrar={iniciarRegistro}
+        />
+      );
+
+    case "registrar":
+      return localizacaoSelecionada ? (
+        <FormularioOcorrencia
+          localizacao={localizacaoSelecionada}
+          onVoltar={() => navegarPara("mapa")}
+        />
+      ) : (
+        <TelaMapa
+          onVoltar={voltar}
+          onRegistrar={iniciarRegistro}
         />
       );
 

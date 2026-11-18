@@ -5,7 +5,6 @@ import {
   TileLayer,
   ZoomControl,
   CircleMarker,
-  Popup,
   useMapEvents,
 } from "react-leaflet";
 
@@ -26,7 +25,6 @@ import {
 
 const CENTRO_SAO_PAULO = [-23.5505, -46.6333];
 
-// Componente responsável pelos cliques no mapa
 function CapturarLocalizacao({ ativo, onSelecionar }) {
   useMapEvents({
     click(evento) {
@@ -41,16 +39,19 @@ function CapturarLocalizacao({ ativo, onSelecionar }) {
   return null;
 }
 
-function TelaMapa({ onVoltar, onRegistrar }) {
+function TelaMapa({
+  onVoltar,
+  onRegistrar,
+  onAbrirDetalhes,
+  categoriaAtiva,
+  onAlterarCategoria,
+}) {
   const [modoSelecao, setModoSelecao] = useState(false);
 
   const [localSelecionado, setLocalSelecionado] =
     useState(null);
 
-  const [categoriaAtiva, setCategoriaAtiva] =
-    useState("todos");
-
-  // Filtragem das ocorrências demonstrativas
+  // Filtragem por categoria
   const ocorrenciasFiltradas =
     categoriaAtiva === "todos"
       ? OCORRENCIAS_DEMONSTRACAO
@@ -126,12 +127,12 @@ function TelaMapa({ onVoltar, onRegistrar }) {
       {/* Filtros */}
       <FiltrosOcorrencias
         categoriaAtiva={categoriaAtiva}
-        onAlterarCategoria={setCategoriaAtiva}
+        onAlterarCategoria={onAlterarCategoria}
         ocorrencias={OCORRENCIAS_DEMONSTRACAO}
         desabilitado={modoSelecao}
       />
 
-      {/* Mapa */}
+      {/* Área do mapa */}
       <div className="relative min-h-0 flex-1">
 
         <MapContainer
@@ -154,13 +155,13 @@ function TelaMapa({ onVoltar, onRegistrar }) {
 
           <ZoomControl position="topright" />
 
-          {/* Captura do ponto de registro */}
+          {/* Selecionar localização */}
           <CapturarLocalizacao
             ativo={modoSelecao}
             onSelecionar={setLocalSelecionado}
           />
 
-          {/* Ocorrências simuladas */}
+          {/* Marcadores de demonstração */}
           {!modoSelecao &&
             ocorrenciasFiltradas.map((ocorrencia) => {
               const categoria = obterCategoria(
@@ -171,7 +172,7 @@ function TelaMapa({ onVoltar, onRegistrar }) {
                 <CircleMarker
                   key={ocorrencia.id}
                   center={ocorrencia.posicao}
-                  radius={9}
+                  radius={12}
                   pathOptions={{
                     color: "#071119",
                     weight: 2,
@@ -179,27 +180,15 @@ function TelaMapa({ onVoltar, onRegistrar }) {
                     fillOpacity: 0.95,
                     bubblingMouseEvents: false,
                   }}
-                >
-                  <Popup>
-                    <div className="min-w-40 text-slate-900">
-                      <strong>
-                        {ocorrencia.titulo}
-                      </strong>
-
-                      <p className="my-2 text-xs">
-                        {ocorrencia.descricao}
-                      </p>
-
-                      <small className="font-semibold text-slate-600">
-                        Ocorrência fictícia — demonstração
-                      </small>
-                    </div>
-                  </Popup>
-                </CircleMarker>
+                  eventHandlers={{
+                    click: () =>
+                      onAbrirDetalhes(ocorrencia),
+                  }}
+                />
               );
             })}
 
-          {/* Marcador da localização escolhida */}
+          {/* Local escolhido para registro */}
           {modoSelecao && localSelecionado && (
             <CircleMarker
               center={localSelecionado}
@@ -215,7 +204,7 @@ function TelaMapa({ onVoltar, onRegistrar }) {
           )}
         </MapContainer>
 
-        {/* Mensagem durante seleção */}
+        {/* Orientação durante a seleção */}
         {modoSelecao && (
           <div className="pointer-events-none absolute bottom-6 left-3 right-3 z-500 rounded-xl border border-cityzer-verde/30 bg-cityzer-fundo/90 p-3 text-center shadow-lg">
 
@@ -234,7 +223,6 @@ function TelaMapa({ onVoltar, onRegistrar }) {
         {!modoSelecao ? (
           <div className="space-y-2">
 
-            {/* Quantidade de ocorrências filtradas */}
             <p
               aria-live="polite"
               className="text-center text-[11px] text-cityzer-suave"

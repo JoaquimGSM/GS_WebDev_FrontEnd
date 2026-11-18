@@ -1,6 +1,14 @@
-import { ArrowRight, MapPinned, UserPlus } from "lucide-react";
+import {
+  ArrowRight,
+  MapPinned,
+  UserPlus,
+} from "lucide-react";
 
-function TelaBoasVindas({ onEntrar, onCriarConta }) {
+function TelaBoasVindas({
+  onEntrar,
+  onCriarConta,
+  onVisualizarMapa,
+}) {
   return (
     <section className="relative flex min-h-full flex-col overflow-hidden bg-cityzer-fundo px-6 pb-8 pt-8 text-center">
 
@@ -14,15 +22,20 @@ function TelaBoasVindas({ onEntrar, onCriarConta }) {
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
 
         <div className="mb-7 flex h-22 w-22 items-center justify-center rounded-[28px] border border-cityzer-verde/30 bg-cityzer-verde/10 shadow-[0_0_45px_rgba(80,232,176,0.12)]">
+
           <MapPinned
             size={44}
             strokeWidth={1.5}
             className="text-cityzer-verde"
           />
+
         </div>
 
         <h1 className="text-4xl font-extrabold tracking-tight text-cityzer-texto">
-          City<span className="text-cityzer-verde">zer</span>
+          City
+          <span className="text-cityzer-verde">
+            zer
+          </span>
         </h1>
 
         <div className="mt-7 h-px w-12 bg-cityzer-verde/50" />
@@ -37,9 +50,10 @@ function TelaBoasVindas({ onEntrar, onCriarConta }) {
           Compartilhe ocorrências nas ruas e acompanhe
           informações validadas pela comunidade.
         </p>
+
       </div>
 
-      {/* Ações de acesso */}
+      {/* Botões principais */}
       <div className="relative z-10 flex w-full flex-col gap-3">
 
         <button
@@ -59,6 +73,17 @@ function TelaBoasVindas({ onEntrar, onCriarConta }) {
           <UserPlus size={18} />
           Criar conta
         </button>
+
+        {/* Acesso exclusivo do ambiente de desenvolvimento */}
+        {import.meta.env.DEV && (
+          <button
+            type="button"
+            onClick={onVisualizarMapa}
+            className="mt-2 cursor-pointer py-2 text-xs font-medium text-cityzer-ciano transition-colors hover:text-cityzer-verde"
+          >
+            Visualizar mapa (prévia)
+          </button>
+        )}
 
       </div>
     </section>

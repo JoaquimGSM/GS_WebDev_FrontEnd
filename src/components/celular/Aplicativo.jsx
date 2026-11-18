@@ -3,6 +3,7 @@ import { useState } from "react";
 import TelaBoasVindas from "./TelaBoasVindas";
 import TelaLogin from "./TelaLogin";
 import TelaCadastro from "./TelaCadastro";
+import TelaMapa from "./TelaMapa";
 
 function Aplicativo() {
   const [telaAtual, setTelaAtual] = useState("boas-vindas");
@@ -16,11 +17,13 @@ function Aplicativo() {
   }
 
   switch (telaAtual) {
+
     case "boas-vindas":
       return (
         <TelaBoasVindas
           onEntrar={() => navegarPara("login")}
           onCriarConta={() => navegarPara("cadastro")}
+          onVisualizarMapa={() => navegarPara("mapa")}
         />
       );
 
@@ -40,11 +43,19 @@ function Aplicativo() {
         />
       );
 
+    case "mapa":
+      return (
+        <TelaMapa
+          onVoltar={voltar}
+        />
+      );
+
     default:
       return (
         <TelaBoasVindas
           onEntrar={() => navegarPara("login")}
           onCriarConta={() => navegarPara("cadastro")}
+          onVisualizarMapa={() => navegarPara("mapa")}
         />
       );
   }

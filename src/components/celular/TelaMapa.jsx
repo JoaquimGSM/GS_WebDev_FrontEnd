@@ -15,6 +15,7 @@ import {
   X,
   ArrowRight,
   ClipboardList,
+  LogOut,
 } from "lucide-react";
 
 import FiltrosOcorrencias from "./FiltrosOcorrencias";
@@ -41,6 +42,7 @@ function CapturarLocalizacao({ ativo, onSelecionar }) {
 
 function TelaMapa({
   onVoltar,
+  onSair,
   onRegistrar,
   onAbrirDetalhes,
   onAbrirMinhas,
@@ -69,9 +71,14 @@ function TelaMapa({
     setLocalSelecionado(null);
   }
 
-  function voltar() {
+  function acaoCabecalho() {
     if (modoSelecao) {
       cancelarSelecao();
+      return;
+    }
+
+    if (onSair) {
+      onSair();
       return;
     }
 
@@ -90,6 +97,8 @@ function TelaMapa({
     );
   }
 
+  const botaoSair = Boolean(onSair) && !modoSelecao;
+
   return (
     <section className="flex h-full min-h-0 flex-col bg-cityzer-fundo">
 
@@ -98,11 +107,22 @@ function TelaMapa({
 
         <button
           type="button"
-          onClick={voltar}
-          aria-label="Voltar"
+          onClick={acaoCabecalho}
+          aria-label={
+            modoSelecao
+              ? "Cancelar seleção"
+              : botaoSair
+                ? "Sair da conta"
+                : "Voltar"
+          }
+          title={botaoSair ? "Sair da conta" : "Voltar"}
           className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-cityzer-texto transition-colors hover:bg-white/10"
         >
-          <ArrowLeft size={20} />
+          {botaoSair ? (
+            <LogOut size={20} />
+          ) : (
+            <ArrowLeft size={20} />
+          )}
         </button>
 
         <div className="min-w-0 flex-1">
@@ -119,7 +139,7 @@ function TelaMapa({
         </div>
 
         <span className="rounded-full border border-cityzer-verde/30 bg-cityzer-verde/10 px-2 py-1 text-[10px] font-semibold text-cityzer-verde">
-          Prévia
+          {onSair ? "Conta" : "Prévia"}
         </span>
       </header>
 
@@ -154,13 +174,12 @@ function TelaMapa({
 
           <ZoomControl position="topright" />
 
-          {/* Seleção de localização */}
           <CapturarLocalizacao
             ativo={modoSelecao}
             onSelecionar={setLocalSelecionado}
           />
 
-          {/* Marcadores fictícios */}
+          {/* Ocorrências de demonstração */}
           {!modoSelecao &&
             ocorrenciasFiltradas.map((ocorrencia) => {
               const categoria = obterCategoria(
@@ -188,7 +207,7 @@ function TelaMapa({
               );
             })}
 
-          {/* Marcador para novo registro */}
+          {/* Local escolhido para novo registro */}
           {modoSelecao && localSelecionado && (
             <CircleMarker
               center={localSelecionado}
@@ -204,7 +223,6 @@ function TelaMapa({
           )}
         </MapContainer>
 
-        {/* Mensagem de seleção */}
         {modoSelecao && (
           <div className="pointer-events-none absolute bottom-6 left-3 right-3 z-500 rounded-xl border border-cityzer-verde/30 bg-cityzer-fundo/90 p-3 text-center shadow-lg">
             <p className="text-xs leading-relaxed text-cityzer-texto">
@@ -232,7 +250,6 @@ function TelaMapa({
                 : "ocorrências fictícias exibidas"}
             </p>
 
-            {/* Navegação principal do mapa */}
             <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
 
               <button
@@ -249,7 +266,10 @@ function TelaMapa({
                 onClick={iniciarSelecao}
                 className="flex min-h-12 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-cityzer-verde px-2 text-xs font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300"
               >
-                <Plus size={18} className="shrink-0" />
+                <Plus
+                  size={18}
+                  className="shrink-0"
+                />
                 Registrar ocorrência
               </button>
 
@@ -265,6 +285,7 @@ function TelaMapa({
             </p>
 
             <div className="flex gap-2">
+
               <button
                 type="button"
                 onClick={cancelarSelecao}
@@ -283,6 +304,7 @@ function TelaMapa({
                 Continuar
                 <ArrowRight size={15} />
               </button>
+
             </div>
           </div>
         )}

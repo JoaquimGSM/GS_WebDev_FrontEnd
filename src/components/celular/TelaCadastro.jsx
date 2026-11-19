@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,9 +9,11 @@ import {
   MapPin,
   Eye,
   EyeOff,
+  LoaderCircle,
 } from "lucide-react";
 
-// Lista inicial de cidades para o protótipo
+import { supabase } from "../../servicos/supabase";
+
 const cidades = [
   "São Paulo",
   "Cotia",
@@ -27,8 +30,14 @@ function TelaCadastro({ onVoltar, onEntrar }) {
   const [email, setEmail] = useState("");
   const [cidade, setCidade] = useState("");
   const [senha, setSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [confirmarSenha, setConfirmarSenha] =
+    useState("");
+
+  const [mostrarSenha, setMostrarSenha] =
+    useState(false);
+
+  const [carregando, setCarregando] =
+    useState(false);
 
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
@@ -38,13 +47,16 @@ function TelaCadastro({ onVoltar, onEntrar }) {
     setAviso("");
   }
 
-  function validarCadastro(evento) {
+  async function realizarCadastro(evento) {
     evento.preventDefault();
     limparMensagens();
 
+    const nomeLimpo = nome.trim();
+    const emailLimpo = email.trim().toLowerCase();
+
     if (
-      !nome.trim() ||
-      !email.trim() ||
+      !nomeLimpo ||
+      !emailLimpo ||
       !cidade ||
       !senha ||
       !confirmarSenha
@@ -53,14 +65,19 @@ function TelaCadastro({ onVoltar, onEntrar }) {
       return;
     }
 
-    if (nome.trim().length < 3) {
+    if (nomeLimpo.length < 3) {
       setErro("Digite seu nome completo.");
+      return;
+    }
+
+    if (nomeLimpo.length > 120) {
+      setErro("O nome é muito longo.");
       return;
     }
 
     const formatoEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!formatoEmail.test(email.trim())) {
+    if (!formatoEmail.test(emailLimpo)) {
       setErro("Digite um e-mail válido.");
       return;
     }
@@ -71,7 +88,9 @@ function TelaCadastro({ onVoltar, onEntrar }) {
     }
 
     if (senha.length < 8) {
-      setErro("A senha precisa ter pelo menos 8 caracteres.");
+      setErro(
+        "A senha precisa ter pelo menos 8 caracteres."
+      );
       return;
     }
 
@@ -80,12 +99,56 @@ function TelaCadastro({ onVoltar, onEntrar }) {
       return;
     }
 
-    // A criação da conta será implementada no Supabase.
-    // Não armazenar senhas no localStorage.
+    setCarregando(true);
 
-    setAviso(
-      "Dados validados! O cadastro será ativado após a integração com o Supabase."
-    );
+    try {
+      const { data, error } =
+        await supabase.auth.signUp({
+          email: emailLimpo,
+          password: senha,
+          options: {
+            data: {
+              nome: nomeLimpo,
+              cidade,
+            },
+            emailRedirectTo: window.location.origin,
+          },
+        });
+
+      if (error) {
+        setErro(
+          "Não foi possível realizar o cadastro: " +
+          error.message
+        );
+        return;
+      }
+
+      if (data.session) {
+        // A conta ja esta autenticada.
+        // O Aplicativo.jsx abrirá o mapa.
+        setAviso(
+          "Conta criada e autenticada com sucesso!"
+        );
+      } else {
+        setAviso(
+          "Se o cadastro puder ser concluído, " +
+          "você receberá um e-mail de confirmação. " +
+          "Confira sua caixa de entrada e a pasta de spam. " +
+          "Depois, volte para entrar."
+        );
+      }
+
+      // Não armazenamos a senha no navegador
+      // nem em tabelas próprias.
+      setSenha("");
+      setConfirmarSenha("");
+    } catch {
+      setErro(
+        "Erro de conexão. Verifique sua internet e tente novamente."
+      );
+    } finally {
+      setCarregando(false);
+    }
   }
 
   const estiloCampo =
@@ -93,7 +156,7 @@ function TelaCadastro({ onVoltar, onEntrar }) {
     "bg-cityzer-superficie/80 py-3 pl-11 pr-4 " +
     "text-sm text-cityzer-texto outline-none " +
     "placeholder:text-cityzer-suave/50 " +
-    "focus:border-cityzer-verde";
+    "focus:border-cityzer-verde disabled:opacity-60";
 
   const estiloLabel =
     "mb-2 block text-xs font-medium text-cityzer-texto";
@@ -101,11 +164,12 @@ function TelaCadastro({ onVoltar, onEntrar }) {
   return (
     <section className="flex min-h-full flex-col bg-cityzer-fundo px-5 pb-7 pt-4">
 
-      {/* Voltar */}
+      {/* Navegação */}
       <button
         type="button"
         onClick={onVoltar}
-        className="flex w-fit cursor-pointer items-center gap-2 text-sm text-cityzer-suave hover:text-cityzer-verde"
+        disabled={carregando}
+        className="flex w-fit cursor-pointer items-center gap-2 text-sm text-cityzer-suave hover:text-cityzer-verde disabled:opacity-50"
       >
         <ArrowLeft size={18} />
         Voltar
@@ -121,25 +185,28 @@ function TelaCadastro({ onVoltar, onEntrar }) {
         </div>
 
         <h1 className="text-3xl font-bold tracking-tight text-cityzer-texto">
-          Criar conta<span className="text-cityzer-verde">.</span>
+          Criar conta
+          <span className="text-cityzer-verde">.</span>
         </h1>
 
         <p className="mt-2 text-sm leading-relaxed text-cityzer-suave">
-          Faça parte da comunidade que ajuda a melhorar
-          a mobilidade urbana.
+          Faça parte da comunidade que ajuda a
+          melhorar a mobilidade urbana.
         </p>
       </div>
 
       {/* Formulário */}
       <form
-        onSubmit={validarCadastro}
+        onSubmit={realizarCadastro}
         noValidate
         className="flex flex-col gap-4"
       >
-
         {/* Nome */}
         <div>
-          <label htmlFor="cadastro-nome" className={estiloLabel}>
+          <label
+            htmlFor="cadastro-nome"
+            className={estiloLabel}
+          >
             Nome completo
           </label>
 
@@ -156,8 +223,9 @@ function TelaCadastro({ onVoltar, onEntrar }) {
               autoComplete="name"
               placeholder="Seu nome"
               value={nome}
-              onChange={(e) => {
-                setNome(e.target.value);
+              disabled={carregando}
+              onChange={(evento) => {
+                setNome(evento.target.value);
                 limparMensagens();
               }}
               className={estiloCampo}
@@ -167,7 +235,10 @@ function TelaCadastro({ onVoltar, onEntrar }) {
 
         {/* E-mail */}
         <div>
-          <label htmlFor="cadastro-email" className={estiloLabel}>
+          <label
+            htmlFor="cadastro-email"
+            className={estiloLabel}
+          >
             E-mail
           </label>
 
@@ -184,8 +255,9 @@ function TelaCadastro({ onVoltar, onEntrar }) {
               autoComplete="email"
               placeholder="seu@email.com"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
+              disabled={carregando}
+              onChange={(evento) => {
+                setEmail(evento.target.value);
                 limparMensagens();
               }}
               className={estiloCampo}
@@ -195,7 +267,10 @@ function TelaCadastro({ onVoltar, onEntrar }) {
 
         {/* Cidade */}
         <div>
-          <label htmlFor="cadastro-cidade" className={estiloLabel}>
+          <label
+            htmlFor="cadastro-cidade"
+            className={estiloLabel}
+          >
             Cidade
           </label>
 
@@ -209,13 +284,16 @@ function TelaCadastro({ onVoltar, onEntrar }) {
             <select
               id="cadastro-cidade"
               value={cidade}
-              onChange={(e) => {
-                setCidade(e.target.value);
+              disabled={carregando}
+              onChange={(evento) => {
+                setCidade(evento.target.value);
                 limparMensagens();
               }}
               className={`${estiloCampo} cursor-pointer pr-3`}
             >
-              <option value="">Selecione sua cidade</option>
+              <option value="">
+                Selecione sua cidade
+              </option>
 
               {cidades.map((item) => (
                 <option key={item} value={item}>
@@ -228,7 +306,10 @@ function TelaCadastro({ onVoltar, onEntrar }) {
 
         {/* Senha */}
         <div>
-          <label htmlFor="cadastro-senha" className={estiloLabel}>
+          <label
+            htmlFor="cadastro-senha"
+            className={estiloLabel}
+          >
             Senha
           </label>
 
@@ -245,8 +326,9 @@ function TelaCadastro({ onVoltar, onEntrar }) {
               autoComplete="new-password"
               placeholder="Mínimo de 8 caracteres"
               value={senha}
-              onChange={(e) => {
-                setSenha(e.target.value);
+              disabled={carregando}
+              onChange={(evento) => {
+                setSenha(evento.target.value);
                 limparMensagens();
               }}
               className={`${estiloCampo} pr-11`}
@@ -254,12 +336,17 @@ function TelaCadastro({ onVoltar, onEntrar }) {
 
             <button
               type="button"
-              onClick={() => setMostrarSenha(!mostrarSenha)}
+              disabled={carregando}
+              onClick={() =>
+                setMostrarSenha((anterior) => !anterior)
+              }
               aria-label={
-                mostrarSenha ? "Ocultar senhas" : "Mostrar senhas"
+                mostrarSenha
+                  ? "Ocultar senhas"
+                  : "Mostrar senhas"
               }
               aria-pressed={mostrarSenha}
-              className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center text-cityzer-suave hover:text-cityzer-verde"
+              className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center text-cityzer-suave hover:text-cityzer-verde disabled:opacity-50"
             >
               {mostrarSenha ? (
                 <EyeOff size={18} />
@@ -292,8 +379,9 @@ function TelaCadastro({ onVoltar, onEntrar }) {
               autoComplete="new-password"
               placeholder="Repita sua senha"
               value={confirmarSenha}
-              onChange={(e) => {
-                setConfirmarSenha(e.target.value);
+              disabled={carregando}
+              onChange={(evento) => {
+                setConfirmarSenha(evento.target.value);
                 limparMensagens();
               }}
               className={estiloCampo}
@@ -305,13 +393,13 @@ function TelaCadastro({ onVoltar, onEntrar }) {
         {erro && (
           <p
             role="alert"
-            className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-xs text-red-300"
+            className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-relaxed text-red-300"
           >
             {erro}
           </p>
         )}
 
-        {/* Aviso */}
+        {/* Aviso de cadastro */}
         {aviso && (
           <p
             role="status"
@@ -321,17 +409,30 @@ function TelaCadastro({ onVoltar, onEntrar }) {
           </p>
         )}
 
-        {/* Enviar */}
+        {/* Criar conta */}
         <button
           type="submit"
-          className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300"
+          disabled={carregando}
+          className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Criar conta
-          <ArrowRight size={18} />
+          {carregando ? (
+            <>
+              <LoaderCircle
+                size={18}
+                className="animate-spin"
+              />
+              Criando conta...
+            </>
+          ) : (
+            <>
+              Criar conta
+              <ArrowRight size={18} />
+            </>
+          )}
         </button>
       </form>
 
-      {/* Ir para login */}
+      {/* Ir para o login */}
       <div className="mt-6 text-center">
         <p className="text-sm text-cityzer-suave">
           Já possui uma conta?
@@ -340,7 +441,8 @@ function TelaCadastro({ onVoltar, onEntrar }) {
         <button
           type="button"
           onClick={onEntrar}
-          className="mt-2 cursor-pointer text-sm font-semibold text-cityzer-verde hover:underline"
+          disabled={carregando}
+          className="mt-2 cursor-pointer text-sm font-semibold text-cityzer-verde hover:underline disabled:opacity-50"
         >
           Entrar
         </button>

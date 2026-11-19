@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -6,56 +7,101 @@ import {
   EyeOff,
   LockKeyhole,
   Mail,
+  LoaderCircle,
 } from "lucide-react";
+
+import { supabase } from "../../servicos/supabase";
 
 function TelaLogin({ onVoltar, onCriarConta }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [mostrarSenha, setMostrarSenha] = useState(false);
+
+  const [mostrarSenha, setMostrarSenha] =
+    useState(false);
+
+  const [carregando, setCarregando] =
+    useState(false);
+
   const [erro, setErro] = useState("");
-  const [aviso, setAviso] = useState("");
 
-  function validarFormulario(evento) {
-    evento.preventDefault();
-
+  function limparErro() {
     setErro("");
-    setAviso("");
+  }
 
-    if (!email.trim() || !senha) {
+  async function realizarLogin(evento) {
+    evento.preventDefault();
+    setErro("");
+
+    const emailLimpo = email.trim().toLowerCase();
+
+    if (!emailLimpo || !senha) {
       setErro("Preencha o e-mail e a senha.");
       return;
     }
 
     const formatoEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!formatoEmail.test(email.trim())) {
+    if (!formatoEmail.test(emailLimpo)) {
       setErro("Digite um e-mail válido.");
       return;
     }
 
-    if (senha.length < 6) {
-      setErro("A senha deve conter pelo menos 6 caracteres.");
-      return;
+    setCarregando(true);
+
+    try {
+      const { error } =
+        await supabase.auth.signInWithPassword({
+          email: emailLimpo,
+          password: senha,
+        });
+
+      if (error) {
+        if (
+          error.message.toLowerCase().includes(
+            "email not confirmed"
+          )
+        ) {
+          setErro(
+            "Confirme seu e-mail antes de entrar."
+          );
+        } else if (
+          error.message.toLowerCase().includes(
+            "invalid login credentials"
+          )
+        ) {
+          setErro(
+            "E-mail ou senha inválidos."
+          );
+        } else {
+          setErro(
+            "Não foi possível entrar: " +
+            error.message
+          );
+        }
+
+        return;
+      }
+
+      // O Aplicativo.jsx detectará a sessão autenticada
+      // e abrirá o mapa automaticamente.
+    } catch {
+      setErro(
+        "Erro de conexão. Verifique sua internet e tente novamente."
+      );
+    } finally {
+      setCarregando(false);
     }
-
-    // A autenticação real será implementada na Etapa 4.
-    setAviso(
-      "Dados validados. O login será ativado após a integração com o Supabase."
-    );
-  }
-
-  function limparMensagens() {
-    setErro("");
-    setAviso("");
   }
 
   return (
     <section className="flex min-h-full flex-col bg-cityzer-fundo px-6 pb-8 pt-5">
-      {/* Navegação */}
+
+      {/* Voltar */}
       <button
         type="button"
         onClick={onVoltar}
-        className="flex w-fit cursor-pointer items-center gap-2 text-sm text-cityzer-suave transition-colors hover:text-cityzer-verde"
+        disabled={carregando}
+        className="flex w-fit cursor-pointer items-center gap-2 text-sm text-cityzer-suave hover:text-cityzer-verde disabled:opacity-50"
       >
         <ArrowLeft size={18} />
         Voltar
@@ -76,14 +122,14 @@ function TelaLogin({ onVoltar, onCriarConta }) {
         </h1>
 
         <p className="mt-3 text-sm leading-relaxed text-cityzer-suave">
-          Entre na sua conta para acompanhar as condições
-          das ruas da sua cidade.
+          Entre na sua conta para acompanhar as
+          condições das ruas da sua cidade.
         </p>
       </div>
 
-      {/* Formulário */}
+      {/* Login */}
       <form
-        onSubmit={validarFormulario}
+        onSubmit={realizarLogin}
         noValidate
         className="flex flex-col gap-5"
       >
@@ -109,11 +155,12 @@ function TelaLogin({ onVoltar, onCriarConta }) {
               autoComplete="email"
               placeholder="seu@email.com"
               value={email}
+              disabled={carregando}
               onChange={(evento) => {
                 setEmail(evento.target.value);
-                limparMensagens();
+                limparErro();
               }}
-              className="min-h-12 w-full rounded-xl border border-white/15 bg-cityzer-superficie/80 py-3 pl-12 pr-4 text-sm text-cityzer-texto outline-none transition-colors placeholder:text-cityzer-suave/50 focus:border-cityzer-verde"
+              className="min-h-12 w-full rounded-xl border border-white/15 bg-cityzer-superficie/80 py-3 pl-12 pr-4 text-sm text-cityzer-texto outline-none transition-colors placeholder:text-cityzer-suave/50 focus:border-cityzer-verde disabled:opacity-60"
             />
           </div>
         </div>
@@ -140,21 +187,27 @@ function TelaLogin({ onVoltar, onCriarConta }) {
               autoComplete="current-password"
               placeholder="Digite sua senha"
               value={senha}
+              disabled={carregando}
               onChange={(evento) => {
                 setSenha(evento.target.value);
-                limparMensagens();
+                limparErro();
               }}
-              className="min-h-12 w-full rounded-xl border border-white/15 bg-cityzer-superficie/80 py-3 pl-12 pr-12 text-sm text-cityzer-texto outline-none transition-colors placeholder:text-cityzer-suave/50 focus:border-cityzer-verde"
+              className="min-h-12 w-full rounded-xl border border-white/15 bg-cityzer-superficie/80 py-3 pl-12 pr-12 text-sm text-cityzer-texto outline-none transition-colors placeholder:text-cityzer-suave/50 focus:border-cityzer-verde disabled:opacity-60"
             />
 
             <button
               type="button"
-              onClick={() => setMostrarSenha(!mostrarSenha)}
+              disabled={carregando}
+              onClick={() =>
+                setMostrarSenha((anterior) => !anterior)
+              }
               aria-label={
-                mostrarSenha ? "Ocultar senha" : "Mostrar senha"
+                mostrarSenha
+                  ? "Ocultar senha"
+                  : "Mostrar senha"
               }
               aria-pressed={mostrarSenha}
-              className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-cityzer-suave hover:text-cityzer-verde"
+              className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center text-cityzer-suave hover:text-cityzer-verde disabled:opacity-50"
             >
               {mostrarSenha ? (
                 <EyeOff size={19} />
@@ -165,7 +218,7 @@ function TelaLogin({ onVoltar, onCriarConta }) {
           </div>
         </div>
 
-        {/* Mensagens de validação */}
+        {/* Mensagem de erro */}
         {erro && (
           <p
             role="alert"
@@ -175,26 +228,30 @@ function TelaLogin({ onVoltar, onCriarConta }) {
           </p>
         )}
 
-        {aviso && (
-          <p
-            role="status"
-            className="rounded-xl border border-cityzer-verde/30 bg-cityzer-verde/10 px-4 py-3 text-xs leading-relaxed text-cityzer-verde"
-          >
-            {aviso}
-          </p>
-        )}
-
-        {/* Botão de entrada */}
+        {/* Entrar */}
         <button
           type="submit"
-          className="mt-2 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde px-4 font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300"
+          disabled={carregando}
+          className="mt-2 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde px-4 font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Entrar
-          <ArrowRight size={18} />
+          {carregando ? (
+            <>
+              <LoaderCircle
+                size={18}
+                className="animate-spin"
+              />
+              Entrando...
+            </>
+          ) : (
+            <>
+              Entrar
+              <ArrowRight size={18} />
+            </>
+          )}
         </button>
       </form>
 
-      {/* Link de cadastro */}
+      {/* Cadastro */}
       <div className="mt-8 text-center">
         <p className="text-sm text-cityzer-suave">
           Ainda não possui uma conta?
@@ -202,8 +259,9 @@ function TelaLogin({ onVoltar, onCriarConta }) {
 
         <button
           type="button"
+          disabled={carregando}
           onClick={onCriarConta}
-          className="mt-2 cursor-pointer text-sm font-semibold text-cityzer-verde hover:underline"
+          className="mt-2 cursor-pointer text-sm font-semibold text-cityzer-verde hover:underline disabled:opacity-50"
         >
           Criar conta
         </button>

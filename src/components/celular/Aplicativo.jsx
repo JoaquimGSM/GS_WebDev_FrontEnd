@@ -1,4 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { LoaderCircle } from "lucide-react";
+
+import { supabase } from "../../servicos/supabase";
 
 import TelaBoasVindas from "./TelaBoasVindas";
 import TelaLogin from "./TelaLogin";
@@ -9,7 +13,8 @@ import DetalhesOcorrencia from "./DetalhesOcorrencia";
 import TelaMinhasOcorrencias from "./TelaMinhasOcorrencias";
 import TelaConfirmacaoOcorrencia from "./TelaConfirmacaoOcorrencia";
 
-// Dados fictícios para testar o gerenciamento
+// Registros fictícios para testes.
+// Ainda não são registros do usuário autenticado.
 const REGISTROS_DEMONSTRACAO = [
   {
     id: "minha-demo-1",
@@ -41,6 +46,15 @@ function Aplicativo() {
   const [telaAtual, setTelaAtual] =
     useState("boas-vindas");
 
+  const [usuario, setUsuario] =
+    useState(null);
+
+  const [carregandoSessao, setCarregandoSessao] =
+    useState(true);
+
+  const [erroSessao, setErroSessao] =
+    useState("");
+
   const [
     localizacaoSelecionada,
     setLocalizacaoSelecionada,
@@ -57,11 +71,43 @@ function Aplicativo() {
   const [minhasOcorrencias, setMinhasOcorrencias] =
     useState(() => [...REGISTROS_DEMONSTRACAO]);
 
-  // Respostas de teste, organizadas pelo ID da ocorrência
   const [
     respostasDemonstracao,
     setRespostasDemonstracao,
   ] = useState({});
+
+  // Monitora login, logout e restauração de sessão.
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (evento, sessao) => {
+        const usuarioAtual = sessao?.user ?? null;
+
+        setUsuario(usuarioAtual);
+        setCarregandoSessao(false);
+
+        if (
+          evento === "SIGNED_IN" ||
+          (evento === "INITIAL_SESSION" && usuarioAtual)
+        ) {
+          setTelaAtual("mapa");
+          setErroSessao("");
+        }
+
+        if (evento === "SIGNED_OUT") {
+          setTelaAtual("boas-vindas");
+          setLocalizacaoSelecionada(null);
+          setOcorrenciaSelecionada(null);
+          setErroSessao("");
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const respostaDaOcorrencia = ocorrenciaSelecionada
     ? respostasDemonstracao[ocorrenciaSelecionada.id] ?? null
@@ -83,6 +129,33 @@ function Aplicativo() {
     setTelaAtual("detalhes");
   }
 
+  // Encerra apenas a sessão deste navegador.
+  async function sairDaConta() {
+    setErroSessao("");
+
+    try {
+      const { error } = await supabase.auth.signOut({
+        scope: "local",
+      });
+
+      if (error) {
+        setErroSessao(
+          "Não foi possível sair: " + error.message
+        );
+        return;
+      }
+
+      // O evento SIGNED_OUT também atualizará
+      // o estado de autenticação.
+      setUsuario(null);
+      setTelaAtual("boas-vindas");
+    } catch {
+      setErroSessao(
+        "Erro de conexão ao sair da conta."
+      );
+    }
+  }
+
   function iniciarRegistro(localizacao) {
     setLocalizacaoSelecionada(localizacao);
     setTelaAtual("registrar");
@@ -95,12 +168,9 @@ function Aplicativo() {
 
   function abrirConfirmacao() {
     if (!ocorrenciaSelecionada) return;
-
     setTelaAtual("confirmacao");
   }
 
-  // Registra uma resposta somente nesta sessão React.
-  // Não envia dados à API nem valida usuários reais.
   function confirmarDemonstracao(resposta) {
     if (!ocorrenciaSelecionada) return;
 
@@ -111,8 +181,6 @@ function Aplicativo() {
     const id = ocorrenciaSelecionada.id;
 
     setRespostasDemonstracao((anteriores) => {
-      // Impede uma segunda resposta de teste para
-      // a mesma ocorrência enquanto a página estiver aberta.
       if (
         Object.prototype.hasOwnProperty.call(
           anteriores,
@@ -133,7 +201,10 @@ function Aplicativo() {
     setMinhasOcorrencias((anteriores) =>
       anteriores.map((ocorrencia) =>
         ocorrencia.id === id
-          ? { ...ocorrencia, ...alteracoes }
+          ? {
+              ...ocorrencia,
+              ...alteracoes,
+            }
           : ocorrencia
       )
     );
@@ -151,6 +222,7 @@ function Aplicativo() {
     return (
       <TelaMapa
         onVoltar={voltar}
+        onSair={usuario ? sairDaConta : undefined}
         onRegistrar={iniciarRegistro}
         onAbrirDetalhes={abrirDetalhes}
         onAbrirMinhas={() => navegarPara("minhas")}
@@ -175,14 +247,42 @@ function Aplicativo() {
     );
   }
 
+  // Evita mostrar o login enquanto o Supabase
+  // verifica se já existe uma sessão salva.
+  if (carregandoSessao) {
+    return (
+      <div className="flex h-full min-h-80 flex-col items-center justify-center gap-4 bg-cityzer-fundo px-6 text-center">
+        <LoaderCircle
+          size={32}
+          className="animate-spin text-cityzer-verde"
+        />
+
+        <p className="text-sm text-cityzer-suave">
+          Verificando sua sessão...
+        </p>
+      </div>
+    );
+  }
+
   switch (telaAtual) {
     case "boas-vindas":
       return (
-        <TelaBoasVindas
-          onEntrar={() => navegarPara("login")}
-          onCriarConta={() => navegarPara("cadastro")}
-          onVisualizarMapa={() => navegarPara("mapa")}
-        />
+        <div className="h-full">
+          <TelaBoasVindas
+            onEntrar={() => navegarPara("login")}
+            onCriarConta={() => navegarPara("cadastro")}
+            onVisualizarMapa={() => navegarPara("mapa")}
+          />
+
+          {erroSessao && (
+            <p
+              role="alert"
+              className="mx-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-xs text-red-300"
+            >
+              {erroSessao}
+            </p>
+          )}
+        </div>
       );
 
     case "login":

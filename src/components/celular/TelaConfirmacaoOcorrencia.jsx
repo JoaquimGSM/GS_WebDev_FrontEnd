@@ -31,7 +31,7 @@ function TelaConfirmacaoOcorrencia({
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [resposta, setResposta] = useState("");
-  const [agora, setAgora] = useState(Date.now());
+  const [agora, setAgora] = useState(() => Date.now());
 
   const categoria = CATEGORIAS_OCORRENCIAS.find(
     (item) => item.id === ocorrencia.categoria
@@ -46,19 +46,17 @@ function TelaConfirmacaoOcorrencia({
   }, []);
 
   useEffect(() => {
-    if (!usuario?.id) {
-      setCarregando(false);
-      return;
-    }
+    if (!usuario?.id) return;
 
     let ativo = true;
 
-    setCarregando(true);
-    setErro("");
-
     consultarConfirmacao(ocorrencia.id)
       .then((resultado) => {
-        if (ativo) setDados(resultado);
+        if (ativo) {
+          setDados(resultado);
+          setErro("");
+          setAgora(Date.now());
+        }
       })
       .catch((error) => {
         if (ativo) {
@@ -80,10 +78,9 @@ function TelaConfirmacaoOcorrencia({
   const removida = dados?.status === "removida";
   const jaConfirmou = Boolean(dados?.minhaResposta);
 
-  const prazo =
-    dados?.revisaoDisponivelEm
-      ? new Date(dados.revisaoDisponivelEm)
-      : null;
+  const prazo = dados?.revisaoDisponivelEm
+    ? new Date(dados.revisaoDisponivelEm)
+    : null;
 
   const prazoValido =
     prazo && !Number.isNaN(prazo.getTime());
@@ -181,7 +178,7 @@ function TelaConfirmacaoOcorrencia({
         </p>
       </div>
 
-      {carregando && (
+      {usuario && carregando && (
         <div className="flex items-center justify-center gap-2 py-8 text-sm text-cityzer-suave">
           <LoaderCircle
             size={19}

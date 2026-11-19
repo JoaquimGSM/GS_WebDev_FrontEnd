@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 
 import useAutenticacao from "../../hooks/useAutenticacao";
@@ -20,14 +20,6 @@ import TelaMinhasOcorrencias from "./TelaMinhasOcorrencias";
 import TelaConfirmacaoOcorrencia from "./TelaConfirmacaoOcorrencia";
 
 function Aplicativo() {
-  const {
-    usuario,
-    carregandoSessao,
-    erroSessao,
-    eventoAutenticacao,
-    sairDaConta,
-  } = useAutenticacao();
-
   const [telaAtual, setTelaAtual] = useState("boas-vindas");
   const [localizacaoSelecionada, setLocalizacaoSelecionada] =
     useState(null);
@@ -40,35 +32,46 @@ function Aplicativo() {
     useState(false);
   const [erroMinhas, setErroMinhas] = useState("");
 
-  useEffect(() => {
-    if (
-      eventoAutenticacao === "INITIAL_SESSION" &&
-      usuario?.id
-    ) {
-      setTelaAtual("mapa");
-      return;
-    }
+  const aoAlterarAutenticacao = useCallback(
+    (evento, usuarioAtual) => {
+      if (
+        evento === "INITIAL_SESSION" &&
+        usuarioAtual?.id
+      ) {
+        setTelaAtual("mapa");
+        return;
+      }
 
-    if (
-      eventoAutenticacao === "SIGNED_IN" &&
-      usuario?.id
-    ) {
-      setTelaAtual((atual) =>
-        ["boas-vindas", "login", "cadastro"].includes(atual)
-          ? "mapa"
-          : atual
-      );
-      return;
-    }
+      if (
+        evento === "SIGNED_IN" &&
+        usuarioAtual?.id
+      ) {
+        setTelaAtual((atual) =>
+          ["boas-vindas", "login", "cadastro"].includes(atual)
+            ? "mapa"
+            : atual
+        );
+        return;
+      }
 
-    if (eventoAutenticacao === "SIGNED_OUT") {
-      setTelaAtual("boas-vindas");
-      setLocalizacaoSelecionada(null);
-      setOcorrenciaSelecionada(null);
-      setMinhasOcorrencias([]);
-      setErroMinhas("");
-    }
-  }, [eventoAutenticacao, usuario?.id]);
+      if (evento === "SIGNED_OUT") {
+        setTelaAtual("boas-vindas");
+        setLocalizacaoSelecionada(null);
+        setOcorrenciaSelecionada(null);
+        setMinhasOcorrencias([]);
+        setCarregandoMinhas(false);
+        setErroMinhas("");
+      }
+    },
+    []
+  );
+
+  const {
+    usuario,
+    carregandoSessao,
+    erroSessao,
+    sairDaConta,
+  } = useAutenticacao(aoAlterarAutenticacao);
 
   useEffect(() => {
     if (telaAtual !== "minhas" || !usuario?.id) {
@@ -77,13 +80,11 @@ function Aplicativo() {
 
     let ativo = true;
 
-    setCarregandoMinhas(true);
-    setErroMinhas("");
-
     listarMinhasOcorrencias(usuario.id)
       .then((registros) => {
         if (ativo) {
           setMinhasOcorrencias(registros);
+          setErroMinhas("");
         }
       })
       .catch((error) => {
@@ -121,6 +122,12 @@ function Aplicativo() {
     setTelaAtual("detalhes");
   }
 
+  function abrirMinhas() {
+    setCarregandoMinhas(true);
+    setErroMinhas("");
+    setTelaAtual("minhas");
+  }
+
   function iniciarRegistro(localizacao) {
     setLocalizacaoSelecionada(localizacao);
     setTelaAtual("registrar");
@@ -141,7 +148,7 @@ function Aplicativo() {
     ]);
 
     setLocalizacaoSelecionada(null);
-    setTelaAtual("minhas");
+    abrirMinhas();
   }
 
   async function editarMinhaOcorrencia(id, alteracoes) {
@@ -194,7 +201,7 @@ function Aplicativo() {
         onSair={usuario ? sairDaConta : undefined}
         onRegistrar={iniciarRegistro}
         onAbrirDetalhes={abrirDetalhes}
-        onAbrirMinhas={() => navegarPara("minhas")}
+        onAbrirMinhas={abrirMinhas}
         categoriaAtiva={categoriaAtiva}
         onAlterarCategoria={setCategoriaAtiva}
       />

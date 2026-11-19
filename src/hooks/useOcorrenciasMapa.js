@@ -15,6 +15,8 @@ export default function useOcorrenciasMapa(usuarioId) {
   const [atualizacao, setAtualizacao] = useState(0);
 
   const atualizarDados = useCallback(() => {
+    setCarregando(true);
+    setErro("");
     setAtualizacao((anterior) => anterior + 1);
   }, []);
 
@@ -22,9 +24,6 @@ export default function useOcorrenciasMapa(usuarioId) {
     let ativo = true;
 
     async function carregarDados() {
-      setCarregando(true);
-      setErro("");
-
       try {
         const cidadeAtual = usuarioId
           ? await obterCidadePerfil(usuarioId)
@@ -43,6 +42,7 @@ export default function useOcorrenciasMapa(usuarioId) {
         setCidade(cidadeAtual);
         setPublicadas(listaPublicadas);
         setPendentes(listaPendentes);
+        setErro("");
       } catch (error) {
         if (!ativo) return;
 

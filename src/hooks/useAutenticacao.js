@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../servicos/supabase";
 
-export default function useAutenticacao() {
+export default function useAutenticacao(onEvento) {
   const [usuario, setUsuario] = useState(null);
   const [carregandoSessao, setCarregandoSessao] = useState(true);
   const [erroSessao, setErroSessao] = useState("");
@@ -11,7 +11,9 @@ export default function useAutenticacao() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((evento, sessao) => {
-      setUsuario(sessao?.user ?? null);
+      const usuarioAtual = sessao?.user ?? null;
+
+      setUsuario(usuarioAtual);
       setEventoAutenticacao(evento);
       setCarregandoSessao(false);
 
@@ -22,10 +24,12 @@ export default function useAutenticacao() {
       ) {
         setErroSessao("");
       }
+
+      onEvento?.(evento, usuarioAtual);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [onEvento]);
 
   const sairDaConta = useCallback(async () => {
     setErroSessao("");

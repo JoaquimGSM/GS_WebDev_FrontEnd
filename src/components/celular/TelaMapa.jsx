@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   MapContainer,
@@ -10,30 +10,50 @@ import {
 
 import {
   ArrowLeft,
-  MapPin,
-  Plus,
-  X,
   ArrowRight,
   ClipboardList,
   LogOut,
+  MapPin,
+  Plus,
+  RefreshCw,
+  Users,
+  X,
 } from "lucide-react";
 
-import FiltrosOcorrencias from "./FiltrosOcorrencias";
+import {
+  obterCidadePerfil,
+  listarOcorrenciasPublicadas,
+  listarOcorrenciasPendentes,
+  adicionarRelato,
+} from "../../servicos/ocorrencias";
 
 import {
   CATEGORIAS_OCORRENCIAS,
-  OCORRENCIAS_DEMONSTRACAO,
 } from "../../dados/ocorrenciasDemonstracao";
 
-const CENTRO_SAO_PAULO = [-23.5505, -46.6333];
+import FiltrosOcorrencias from "./FiltrosOcorrencias";
+import PainelRelatos from "./PainelRelatos";
+
+const CENTROS = {
+  "São Paulo": [-23.5505, -46.6333],
+  Cotia: [-23.6022, -46.9190],
+  Itapevi: [-23.5489, -46.9345],
+  Barueri: [-23.5117, -46.8760],
+  Osasco: [-23.5327, -46.7917],
+  Carapicuíba: [-23.5235, -46.8407],
+  "Santana de Parnaíba": [-23.4445, -46.9178],
+  Itaquaquecetuba: [-23.4862, -46.3497],
+};
 
 function CapturarLocalizacao({ ativo, onSelecionar }) {
   useMapEvents({
     click(evento) {
       if (!ativo) return;
 
-      const { lat, lng } = evento.latlng;
-      onSelecionar([lat, lng]);
+      onSelecionar([
+        evento.latlng.lat,
+        evento.latlng.lng,
+      ]);
     },
   });
 
@@ -41,6 +61,7 @@ function CapturarLocalizacao({ ativo, onSelecionar }) {
 }
 
 function TelaMapa({
+  usuario,
   onVoltar,
   onSair,
   onRegistrar,
@@ -49,21 +70,81 @@ function TelaMapa({
   categoriaAtiva,
   onAlterarCategoria,
 }) {
+  const [cidade, setCidade] = useState("São Paulo");
+  const [publicadas, setPublicadas] = useState([]);
+  const [pendentes, setPendentes] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+  const [atualizacao, setAtualizacao] = useState(0);
+
   const [modoSelecao, setModoSelecao] = useState(false);
-  const [localSelecionado, setLocalSelecionado] =
-    useState(null);
+  const [localSelecionado, setLocalSelecionado] = useState(null);
+  const [mostrarPainel, setMostrarPainel] = useState(false);
+
+  const [processandoId, setProcessandoId] = useState(null);
+  const [erroRelato, setErroRelato] = useState("");
+  const [mensagemRelato, setMensagemRelato] = useState("");
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarDados() {
+      setCarregando(true);
+      setErro("");
+
+      try {
+        const cidadeAtual = usuario?.id
+          ? await obterCidadePerfil(usuario.id)
+          : "São Paulo";
+
+        const [listaPublicadas, listaPendentes] =
+          await Promise.all([
+            listarOcorrenciasPublicadas(cidadeAtual),
+            usuario?.id
+              ? listarOcorrenciasPendentes()
+              : Promise.resolve([]),
+          ]);
+
+        if (!ativo) return;
+
+        setCidade(cidadeAtual);
+        setPublicadas(listaPublicadas);
+        setPendentes(listaPendentes);
+      } catch (error) {
+        if (!ativo) return;
+
+        setErro(
+          error.message || "Não foi possível carregar o mapa."
+        );
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    }
+
+    carregarDados();
+
+    return () => {
+      ativo = false;
+    };
+  }, [usuario?.id, atualizacao]);
 
   const ocorrenciasFiltradas =
     categoriaAtiva === "todos"
-      ? OCORRENCIAS_DEMONSTRACAO
-      : OCORRENCIAS_DEMONSTRACAO.filter(
+      ? publicadas
+      : publicadas.filter(
           (ocorrencia) =>
             ocorrencia.categoria === categoriaAtiva
         );
 
+  const centro = CENTROS[cidade] ?? CENTROS["São Paulo"];
+
+  function atualizarDados() {
+    setAtualizacao((anterior) => anterior + 1);
+  }
+
   function iniciarSelecao() {
-    setLocalSelecionado(null);
     setModoSelecao(true);
+    setLocalSelecionado(null);
   }
 
   function cancelarSelecao() {
@@ -87,13 +168,40 @@ function TelaMapa({
 
   function continuarRegistro() {
     if (!localSelecionado) return;
-
     onRegistrar(localSelecionado);
   }
 
-  function obterCategoria(id) {
-    return CATEGORIAS_OCORRENCIAS.find(
-      (categoria) => categoria.id === id
+  async function relatarOcorrencia(id) {
+    if (!usuario || processandoId) return;
+
+    setProcessandoId(id);
+    setErroRelato("");
+    setMensagemRelato("");
+
+    try {
+      const total = await adicionarRelato(id);
+
+      setMensagemRelato(
+        total >= 6
+          ? "Sexto relato registrado! O alerta foi publicado."
+          : `Relato registrado com sucesso: ${total}/6.`
+      );
+
+      atualizarDados();
+    } catch (error) {
+      setErroRelato(
+        error.message || "Não foi possível registrar o relato."
+      );
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
+  function obterCor(categoriaId) {
+    return (
+      CATEGORIAS_OCORRENCIAS.find(
+        (item) => item.id === categoriaId
+      )?.cor ?? "#50E8B0"
     );
   }
 
@@ -101,10 +209,7 @@ function TelaMapa({
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-cityzer-fundo">
-
-      {/* Cabeçalho */}
       <header className="relative z-10 flex shrink-0 items-center gap-3 border-b border-white/10 bg-cityzer-superficie px-4 py-3">
-
         <button
           type="button"
           onClick={acaoCabecalho}
@@ -115,8 +220,7 @@ function TelaMapa({
                 ? "Sair da conta"
                 : "Voltar"
           }
-          title={botaoSair ? "Sair da conta" : "Voltar"}
-          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-cityzer-texto transition-colors hover:bg-white/10"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-cityzer-texto hover:bg-white/10"
         >
           {botaoSair ? (
             <LogOut size={20} />
@@ -127,45 +231,37 @@ function TelaMapa({
 
         <div className="min-w-0 flex-1">
           <h1 className="text-base font-bold text-cityzer-texto">
-            {modoSelecao
-              ? "Selecionar local"
-              : "Mapa Cityzer"}
+            {modoSelecao ? "Selecionar local" : "Mapa Cityzer"}
           </h1>
-
           <p className="flex items-center gap-1 text-xs text-cityzer-suave">
             <MapPin size={12} />
-            São Paulo, SP
+            {cidade}
           </p>
         </div>
 
         <span className="rounded-full border border-cityzer-verde/30 bg-cityzer-verde/10 px-2 py-1 text-[10px] font-semibold text-cityzer-verde">
-          {onSair ? "Conta" : "Prévia"}
+          Ao vivo
         </span>
       </header>
 
-      {/* Filtros */}
       <FiltrosOcorrencias
         categoriaAtiva={categoriaAtiva}
         onAlterarCategoria={onAlterarCategoria}
-        ocorrencias={OCORRENCIAS_DEMONSTRACAO}
+        ocorrencias={publicadas}
         desabilitado={modoSelecao}
       />
 
-      {/* Mapa */}
       <div className="relative min-h-0 flex-1">
-
         <MapContainer
-          center={CENTRO_SAO_PAULO}
+          key={cidade}
+          center={centro}
           zoom={12}
           minZoom={9}
           maxZoom={19}
           scrollWheelZoom={false}
           zoomControl={false}
           className="h-full w-full"
-          style={{
-            height: "100%",
-            width: "100%",
-          }}
+          style={{ height: "100%", width: "100%" }}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -179,35 +275,25 @@ function TelaMapa({
             onSelecionar={setLocalSelecionado}
           />
 
-          {/* Ocorrências de demonstração */}
           {!modoSelecao &&
-            ocorrenciasFiltradas.map((ocorrencia) => {
-              const categoria = obterCategoria(
-                ocorrencia.categoria
-              );
+            ocorrenciasFiltradas.map((ocorrencia) => (
+              <CircleMarker
+                key={ocorrencia.id}
+                center={ocorrencia.posicao}
+                radius={12}
+                pathOptions={{
+                  color: "#071119",
+                  weight: 2,
+                  fillColor: obterCor(ocorrencia.categoria),
+                  fillOpacity: 0.95,
+                  bubblingMouseEvents: false,
+                }}
+                eventHandlers={{
+                  click: () => onAbrirDetalhes(ocorrencia),
+                }}
+              />
+            ))}
 
-              return (
-                <CircleMarker
-                  key={ocorrencia.id}
-                  center={ocorrencia.posicao}
-                  radius={12}
-                  pathOptions={{
-                    color: "#071119",
-                    weight: 2,
-                    fillColor:
-                      categoria?.cor ?? "#50E8B0",
-                    fillOpacity: 0.95,
-                    bubblingMouseEvents: false,
-                  }}
-                  eventHandlers={{
-                    click: () =>
-                      onAbrirDetalhes(ocorrencia),
-                  }}
-                />
-              );
-            })}
-
-          {/* Local escolhido para novo registro */}
           {modoSelecao && localSelecionado && (
             <CircleMarker
               center={localSelecionado}
@@ -232,30 +318,70 @@ function TelaMapa({
             </p>
           </div>
         )}
+
+        {mostrarPainel && (
+          <PainelRelatos
+            ocorrencias={pendentes}
+            carregando={carregando}
+            processandoId={processandoId}
+            erro={erroRelato || erro}
+            mensagem={mensagemRelato}
+            onRelatar={relatarOcorrencia}
+            onFechar={() => setMostrarPainel(false)}
+          />
+        )}
       </div>
 
-      {/* Rodapé */}
       <footer className="relative z-10 shrink-0 border-t border-white/10 bg-cityzer-superficie p-3">
-
         {!modoSelecao ? (
-          <div className="space-y-3">
-
-            <p
-              aria-live="polite"
-              className="text-center text-[11px] text-cityzer-suave"
-            >
-              {ocorrenciasFiltradas.length}{" "}
-              {ocorrenciasFiltradas.length === 1
-                ? "ocorrência fictícia exibida"
-                : "ocorrências fictícias exibidas"}
-            </p>
-
-            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p
+                aria-live="polite"
+                className="text-[11px] text-cityzer-suave"
+              >
+                {carregando
+                  ? "Carregando alertas..."
+                  : `${ocorrenciasFiltradas.length} alertas publicados`}
+              </p>
 
               <button
                 type="button"
+                onClick={atualizarDados}
+                disabled={carregando}
+                aria-label="Atualizar ocorrências"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-cityzer-verde disabled:opacity-40"
+              >
+                <RefreshCw size={16} />
+              </button>
+            </div>
+
+            {erro && (
+              <p role="alert" className="text-[11px] text-red-300">
+                {erro}
+              </p>
+            )}
+
+            {usuario && (
+              <button
+                type="button"
+                onClick={() => {
+                  setErroRelato("");
+                  setMensagemRelato("");
+                  setMostrarPainel(true);
+                }}
+                className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-cityzer-ciano/30 bg-cityzer-ciano/10 text-xs font-semibold text-cityzer-ciano"
+              >
+                <Users size={16} />
+                Aguardando relatos ({pendentes.length})
+              </button>
+            )}
+
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+              <button
+                type="button"
                 onClick={onAbrirMinhas}
-                className="flex min-h-12 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-cityzer-verde/40 bg-cityzer-fundo px-3 text-xs font-semibold text-cityzer-verde"
+                className="flex min-h-12 items-center justify-center gap-1.5 rounded-xl border border-cityzer-verde/40 bg-cityzer-fundo px-3 text-xs font-semibold text-cityzer-verde"
               >
                 <ClipboardList size={17} />
                 Minhas
@@ -264,20 +390,15 @@ function TelaMapa({
               <button
                 type="button"
                 onClick={iniciarSelecao}
-                className="flex min-h-12 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-cityzer-verde px-2 text-xs font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300"
+                className="flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl bg-cityzer-verde px-2 text-xs font-semibold text-cityzer-fundo"
               >
-                <Plus
-                  size={18}
-                  className="shrink-0"
-                />
+                <Plus size={18} />
                 Registrar ocorrência
               </button>
-
             </div>
           </div>
         ) : (
           <div className="space-y-3">
-
             <p className="text-center text-[11px] text-cityzer-suave">
               {localSelecionado
                 ? `Lat: ${localSelecionado[0].toFixed(5)} | Long: ${localSelecionado[1].toFixed(5)}`
@@ -285,11 +406,10 @@ function TelaMapa({
             </p>
 
             <div className="flex gap-2">
-
               <button
                 type="button"
                 onClick={cancelarSelecao}
-                className="flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1 rounded-xl border border-white/15 bg-cityzer-fundo text-xs font-semibold text-cityzer-texto"
+                className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl border border-white/15 bg-cityzer-fundo text-xs font-semibold text-cityzer-texto"
               >
                 <X size={15} />
                 Cancelar
@@ -299,12 +419,11 @@ function TelaMapa({
                 type="button"
                 onClick={continuarRegistro}
                 disabled={!localSelecionado}
-                className="flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1 rounded-xl bg-cityzer-verde text-xs font-semibold text-cityzer-fundo disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-cityzer-verde text-xs font-semibold text-cityzer-fundo disabled:opacity-40"
               >
                 Continuar
                 <ArrowRight size={15} />
               </button>
-
             </div>
           </div>
         )}

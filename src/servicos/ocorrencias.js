@@ -55,9 +55,7 @@ function validarCampos(dados) {
   }
 
   if ((dados.referencia ?? "").trim().length > 80) {
-    throw new Error(
-      "A referência pode conter até 80 caracteres."
-    );
+    throw new Error("A referência pode ter até 80 caracteres.");
   }
 
   const tamanho = (dados.descricao ?? "").trim().length;
@@ -67,6 +65,26 @@ function validarCampos(dados) {
       "A descrição deve conter entre 10 e 300 caracteres."
     );
   }
+}
+
+export async function obterCidadePerfil(usuarioId) {
+  if (!usuarioId) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  const { data, error } = await supabase
+    .from("perfis")
+    .select("cidade")
+    .eq("id", usuarioId)
+    .single();
+
+  if (error) throw error;
+
+  if (!data?.cidade) {
+    throw new Error("Cidade não encontrada no perfil.");
+  }
+
+  return data.cidade;
 }
 
 export async function listarMinhasOcorrencias(usuarioId) {
@@ -85,16 +103,54 @@ export async function listarMinhasOcorrencias(usuarioId) {
   return (data ?? []).map(normalizarOcorrencia);
 }
 
-export async function listarOcorrenciasPublicadas() {
+export async function listarOcorrenciasPublicadas(cidade) {
   const { data, error } = await supabase
     .from("ocorrencias")
     .select(COLUNAS)
     .eq("status", "publicada")
+    .eq("cidade", cidade)
     .order("criada_em", { ascending: false });
 
   if (error) throw error;
 
   return (data ?? []).map(normalizarOcorrencia);
+}
+
+export async function listarOcorrenciasPendentes() {
+  const { data, error } = await supabase.rpc(
+    "listar_pendentes_cityzer"
+  );
+
+  if (error) throw error;
+
+  return (data ?? []).map((registro) => ({
+    id: registro.id,
+    cidade: registro.cidade,
+    categoria: registro.categoria,
+    titulo: NOMES[registro.categoria] ?? "Ocorrência",
+    referencia: registro.referencia ?? "",
+    descricao: registro.descricao,
+    posicao: [
+      Number(registro.latitude),
+      Number(registro.longitude),
+    ],
+    criadaEm: registro.criada_em,
+    totalRelatos: Number(registro.total_relatos),
+    jaRelatei: Boolean(registro.ja_relatei),
+  }));
+}
+
+export async function adicionarRelato(ocorrenciaId) {
+  const { data, error } = await supabase.rpc(
+    "adicionar_relato_cityzer",
+    {
+      p_ocorrencia_id: ocorrenciaId,
+    }
+  );
+
+  if (error) throw error;
+
+  return Number(data);
 }
 
 export async function criarOcorrencia(usuario, dados) {
@@ -119,24 +175,13 @@ export async function criarOcorrencia(usuario, dados) {
     throw new Error("Localização inválida.");
   }
 
-  const { data: perfil, error: erroPerfil } =
-    await supabase
-      .from("perfis")
-      .select("cidade")
-      .eq("id", usuario.id)
-      .single();
-
-  if (erroPerfil || !perfil?.cidade) {
-    throw new Error(
-      "Não foi possível identificar a cidade do seu perfil."
-    );
-  }
+  const cidade = await obterCidadePerfil(usuario.id);
 
   const { data, error } = await supabase
     .from("ocorrencias")
     .insert({
       autor_id: usuario.id,
-      cidade: perfil.cidade,
+      cidade,
       categoria: dados.categoria,
       latitude,
       longitude,

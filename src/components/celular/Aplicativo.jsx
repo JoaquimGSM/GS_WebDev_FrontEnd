@@ -22,8 +22,7 @@ import TelaConfirmacaoOcorrencia from "./TelaConfirmacaoOcorrencia";
 function Aplicativo() {
   const [telaAtual, setTelaAtual] = useState("boas-vindas");
   const [usuario, setUsuario] = useState(null);
-  const [carregandoSessao, setCarregandoSessao] =
-    useState(true);
+  const [carregandoSessao, setCarregandoSessao] = useState(true);
   const [erroSessao, setErroSessao] = useState("");
 
   const [localizacaoSelecionada, setLocalizacaoSelecionada] =
@@ -42,7 +41,6 @@ function Aplicativo() {
     useState(false);
 
   const [erroMinhas, setErroMinhas] = useState("");
-
   const [respostasDemonstracao, setRespostasDemonstracao] =
     useState({});
 
@@ -66,13 +64,10 @@ function Aplicativo() {
 
         if (evento === "SIGNED_IN" && usuarioAtual) {
           setTelaAtual((atual) =>
-            ["boas-vindas", "login", "cadastro"].includes(
-              atual
-            )
+            ["boas-vindas", "login", "cadastro"].includes(atual)
               ? "mapa"
               : atual
           );
-
           setErroSessao("");
         }
 
@@ -127,8 +122,7 @@ function Aplicativo() {
   }, [telaAtual, usuario?.id]);
 
   const respostaDaOcorrencia = ocorrenciaSelecionada
-    ? respostasDemonstracao[ocorrenciaSelecionada.id] ??
-      null
+    ? respostasDemonstracao[ocorrenciaSelecionada.id] ?? null
     : null;
 
   function navegarPara(tela) {
@@ -225,7 +219,6 @@ function Aplicativo() {
 
   function abrirConfirmacao() {
     if (!ocorrenciaSelecionada) return;
-
     setTelaAtual("confirmacao");
   }
 
@@ -258,6 +251,7 @@ function Aplicativo() {
   function renderizarMapa() {
     return (
       <TelaMapa
+        usuario={usuario}
         onVoltar={voltar}
         onSair={usuario ? sairDaConta : undefined}
         onRegistrar={iniciarRegistro}
@@ -291,7 +285,6 @@ function Aplicativo() {
           size={32}
           className="animate-spin text-cityzer-verde"
         />
-
         <p className="text-sm text-cityzer-suave">
           Verificando sua sessão...
         </p>

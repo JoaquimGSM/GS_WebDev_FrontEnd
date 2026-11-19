@@ -34,7 +34,6 @@ Alguns exemplos representativos das perguntas feitas foram:
 
 > Corrija esse código SQL e explique por que ele não está funcionando.
 
-> Como posso separar melhor a lógica da aplicação utilizando componentes e hooks personalizados?
 
 Esses exemplos foram organizados e reformulados para representar os assuntos das consultas, não sendo necessariamente transcrições exatas das mensagens.
 
@@ -75,13 +74,3 @@ Achei especialmente útil poder enviar um erro específico e receber uma explica
 Por outro lado, percebi que não dá para confiar em todas as respostas sem testar. Algumas sugestões precisaram ser corrigidas, e houve situações em que uma alteração resolveu determinado problema, mas exigiu outros ajustes para funcionar junto com o restante da aplicação.
 
 Isso mostrou a importância de acompanhar o funcionamento do código, entender as mudanças realizadas e não considerar uma funcionalidade concluída apenas porque ela foi implementada.
-
-## Conclusão
-
-Utilizei o ChatGPT como apoio durante o desenvolvimento do Cityzer, principalmente para consultas técnicas, integração de tecnologias, revisão de código SQL e resolução de erros.
-
-A ferramenta também contribuiu com sugestões de implementação que foram aproveitadas no projeto.
-
-O desenvolvimento envolveu colocar essas soluções em prática, configurar os serviços necessários, testar o funcionamento da aplicação e corrigir os problemas encontrados.
-
-Foi uma experiência interessante porque, além de ajudar a desenvolver o projeto, o uso da IA me permitiu conhecer melhor algumas ferramentas e compreender problemas que apareceram durante a programação.

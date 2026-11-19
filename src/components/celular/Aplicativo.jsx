@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
-
 import { LoaderCircle } from "lucide-react";
 
 import { supabase } from "../../servicos/supabase";
+
+import {
+  listarMinhasOcorrencias,
+  criarOcorrencia,
+  atualizarOcorrencia,
+  excluirOcorrencia,
+} from "../../servicos/ocorrencias";
 
 import TelaBoasVindas from "./TelaBoasVindas";
 import TelaLogin from "./TelaLogin";
@@ -13,70 +19,33 @@ import DetalhesOcorrencia from "./DetalhesOcorrencia";
 import TelaMinhasOcorrencias from "./TelaMinhasOcorrencias";
 import TelaConfirmacaoOcorrencia from "./TelaConfirmacaoOcorrencia";
 
-// Registros fictícios para testes.
-// Ainda não são registros do usuário autenticado.
-const REGISTROS_DEMONSTRACAO = [
-  {
-    id: "minha-demo-1",
-    categoria: "buraco",
-    referencia: "Próximo ao cruzamento",
-    descricao:
-      "Exemplo fictício de um buraco dificultando a passagem de veículos.",
-    posicao: [-23.5525, -46.6342],
-  },
-  {
-    id: "minha-demo-2",
-    categoria: "alagamento",
-    referencia: "Próximo ao viaduto",
-    descricao:
-      "Exemplo fictício de acúmulo de água prejudicando a circulação.",
-    posicao: [-23.5614, -46.6573],
-  },
-  {
-    id: "minha-demo-3",
-    categoria: "arvore",
-    referencia: "Ao lado da praça",
-    descricao:
-      "Exemplo fictício de árvore caída bloqueando parcialmente a via.",
-    posicao: [-23.5472, -46.6221],
-  },
-];
-
 function Aplicativo() {
-  const [telaAtual, setTelaAtual] =
-    useState("boas-vindas");
-
-  const [usuario, setUsuario] =
-    useState(null);
-
+  const [telaAtual, setTelaAtual] = useState("boas-vindas");
+  const [usuario, setUsuario] = useState(null);
   const [carregandoSessao, setCarregandoSessao] =
     useState(true);
+  const [erroSessao, setErroSessao] = useState("");
 
-  const [erroSessao, setErroSessao] =
-    useState("");
+  const [localizacaoSelecionada, setLocalizacaoSelecionada] =
+    useState(null);
 
-  const [
-    localizacaoSelecionada,
-    setLocalizacaoSelecionada,
-  ] = useState(null);
-
-  const [
-    ocorrenciaSelecionada,
-    setOcorrenciaSelecionada,
-  ] = useState(null);
+  const [ocorrenciaSelecionada, setOcorrenciaSelecionada] =
+    useState(null);
 
   const [categoriaAtiva, setCategoriaAtiva] =
     useState("todos");
 
   const [minhasOcorrencias, setMinhasOcorrencias] =
-    useState(() => [...REGISTROS_DEMONSTRACAO]);
+    useState([]);
 
-  const [
-    respostasDemonstracao,
-    setRespostasDemonstracao,
-  ] = useState({});
+  const [carregandoMinhas, setCarregandoMinhas] =
+    useState(false);
 
-  // Monitora login, logout e restauração de sessão.
+  const [erroMinhas, setErroMinhas] = useState("");
+
+  const [respostasDemonstracao, setRespostasDemonstracao] =
+    useState({});
+
   useEffect(() => {
     const {
       data: { subscription },
@@ -88,10 +57,22 @@ function Aplicativo() {
         setCarregandoSessao(false);
 
         if (
-          evento === "SIGNED_IN" ||
-          (evento === "INITIAL_SESSION" && usuarioAtual)
+          evento === "INITIAL_SESSION" &&
+          usuarioAtual
         ) {
           setTelaAtual("mapa");
+          setErroSessao("");
+        }
+
+        if (evento === "SIGNED_IN" && usuarioAtual) {
+          setTelaAtual((atual) =>
+            ["boas-vindas", "login", "cadastro"].includes(
+              atual
+            )
+              ? "mapa"
+              : atual
+          );
+
           setErroSessao("");
         }
 
@@ -99,18 +80,55 @@ function Aplicativo() {
           setTelaAtual("boas-vindas");
           setLocalizacaoSelecionada(null);
           setOcorrenciaSelecionada(null);
+          setMinhasOcorrencias([]);
+          setRespostasDemonstracao({});
+          setErroMinhas("");
           setErroSessao("");
         }
       }
     );
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (telaAtual !== "minhas" || !usuario?.id) {
+      return;
+    }
+
+    let ativo = true;
+
+    setCarregandoMinhas(true);
+    setErroMinhas("");
+
+    listarMinhasOcorrencias(usuario.id)
+      .then((registros) => {
+        if (ativo) {
+          setMinhasOcorrencias(registros);
+        }
+      })
+      .catch((error) => {
+        if (ativo) {
+          setErroMinhas(
+            error.message ||
+              "Não foi possível carregar suas ocorrências."
+          );
+        }
+      })
+      .finally(() => {
+        if (ativo) {
+          setCarregandoMinhas(false);
+        }
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [telaAtual, usuario?.id]);
+
   const respostaDaOcorrencia = ocorrenciaSelecionada
-    ? respostasDemonstracao[ocorrenciaSelecionada.id] ?? null
+    ? respostasDemonstracao[ocorrenciaSelecionada.id] ??
+      null
     : null;
 
   function navegarPara(tela) {
@@ -129,7 +147,6 @@ function Aplicativo() {
     setTelaAtual("detalhes");
   }
 
-  // Encerra apenas a sessão deste navegador.
   async function sairDaConta() {
     setErroSessao("");
 
@@ -138,20 +155,14 @@ function Aplicativo() {
         scope: "local",
       });
 
-      if (error) {
-        setErroSessao(
-          "Não foi possível sair: " + error.message
-        );
-        return;
-      }
+      if (error) throw error;
 
-      // O evento SIGNED_OUT também atualizará
-      // o estado de autenticação.
       setUsuario(null);
       setTelaAtual("boas-vindas");
-    } catch {
+      setMinhasOcorrencias([]);
+    } catch (error) {
       setErroSessao(
-        "Erro de conexão ao sair da conta."
+        error.message || "Não foi possível sair."
       );
     }
   }
@@ -161,6 +172,52 @@ function Aplicativo() {
     setTelaAtual("registrar");
   }
 
+  async function salvarNovaOcorrencia(dados) {
+    if (!usuario) {
+      throw new Error("Faça login para registrar ocorrências.");
+    }
+
+    const registro = await criarOcorrencia(usuario, dados);
+
+    setMinhasOcorrencias((anteriores) => [
+      registro,
+      ...anteriores,
+    ]);
+
+    setLocalizacaoSelecionada(null);
+    setTelaAtual("minhas");
+  }
+
+  async function editarMinhaOcorrencia(id, alteracoes) {
+    if (!usuario) {
+      throw new Error("Usuário não autenticado.");
+    }
+
+    const atualizada = await atualizarOcorrencia(
+      usuario.id,
+      id,
+      alteracoes
+    );
+
+    setMinhasOcorrencias((anteriores) =>
+      anteriores.map((ocorrencia) =>
+        ocorrencia.id === id ? atualizada : ocorrencia
+      )
+    );
+  }
+
+  async function excluirMinhaOcorrencia(id) {
+    if (!usuario) {
+      throw new Error("Usuário não autenticado.");
+    }
+
+    await excluirOcorrencia(usuario.id, id);
+
+    setMinhasOcorrencias((anteriores) =>
+      anteriores.filter((ocorrencia) => ocorrencia.id !== id)
+    );
+  }
+
   function abrirDetalhes(ocorrencia) {
     setOcorrenciaSelecionada(ocorrencia);
     setTelaAtual("detalhes");
@@ -168,6 +225,7 @@ function Aplicativo() {
 
   function abrirConfirmacao() {
     if (!ocorrenciaSelecionada) return;
+
     setTelaAtual("confirmacao");
   }
 
@@ -195,27 +253,6 @@ function Aplicativo() {
         [id]: resposta,
       };
     });
-  }
-
-  function editarMinhaOcorrencia(id, alteracoes) {
-    setMinhasOcorrencias((anteriores) =>
-      anteriores.map((ocorrencia) =>
-        ocorrencia.id === id
-          ? {
-              ...ocorrencia,
-              ...alteracoes,
-            }
-          : ocorrencia
-      )
-    );
-  }
-
-  function excluirMinhaOcorrencia(id) {
-    setMinhasOcorrencias((anteriores) =>
-      anteriores.filter(
-        (ocorrencia) => ocorrencia.id !== id
-      )
-    );
   }
 
   function renderizarMapa() {
@@ -247,8 +284,6 @@ function Aplicativo() {
     );
   }
 
-  // Evita mostrar o login enquanto o Supabase
-  // verifica se já existe uma sessão salva.
   if (carregandoSessao) {
     return (
       <div className="flex h-full min-h-80 flex-col items-center justify-center gap-4 bg-cityzer-fundo px-6 text-center">
@@ -308,7 +343,9 @@ function Aplicativo() {
       return localizacaoSelecionada ? (
         <FormularioOcorrencia
           localizacao={localizacaoSelecionada}
+          usuario={usuario}
           onVoltar={voltarParaMapa}
+          onSalvar={salvarNovaOcorrencia}
         />
       ) : (
         renderizarMapa()
@@ -332,7 +369,10 @@ function Aplicativo() {
     case "minhas":
       return (
         <TelaMinhasOcorrencias
+          usuario={usuario}
           ocorrencias={minhasOcorrencias}
+          carregando={carregandoMinhas}
+          erroCarregamento={erroMinhas}
           onVoltar={voltarParaMapa}
           onEditar={editarMinhaOcorrencia}
           onExcluir={excluirMinhaOcorrencia}

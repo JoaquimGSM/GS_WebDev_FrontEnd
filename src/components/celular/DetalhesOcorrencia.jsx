@@ -109,7 +109,7 @@ function DetalhesOcorrencia({
           </h2>
         </div>
 
-        <p className="break-words text-sm leading-relaxed text-cityzer-suave">
+        <p className="wrap-break-word text-sm leading-relaxed text-cityzer-suave">
           {ocorrencia.descricao}
         </p>
       </div>

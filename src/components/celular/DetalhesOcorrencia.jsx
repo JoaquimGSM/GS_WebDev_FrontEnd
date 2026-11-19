@@ -1,10 +1,10 @@
 import {
   ArrowLeft,
-  MapPin,
+  ChevronRight,
   ClipboardList,
+  MapPin,
   MapPinned,
   ShieldCheck,
-  ChevronRight,
   CheckCircle2,
 } from "lucide-react";
 
@@ -14,7 +14,6 @@ import {
 
 function DetalhesOcorrencia({
   ocorrencia,
-  respostaDemonstracao,
   onVoltar,
   onAbrirConfirmacao,
 }) {
@@ -24,7 +23,6 @@ function DetalhesOcorrencia({
 
   const [latitude, longitude] = ocorrencia.posicao;
   const cor = categoria?.cor ?? "#50E8B0";
-  const jaRespondeu = respostaDemonstracao !== null;
 
   return (
     <section className="flex min-h-full flex-col bg-cityzer-fundo px-5 pb-7 pt-4">
@@ -45,10 +43,7 @@ function DetalhesOcorrencia({
             backgroundColor: `${cor}18`,
           }}
         >
-          <MapPinned
-            size={28}
-            style={{ color: cor }}
-          />
+          <MapPinned size={28} style={{ color: cor }} />
         </div>
 
         <span
@@ -62,7 +57,7 @@ function DetalhesOcorrencia({
           {categoria?.nome ?? "Ocorrência"}
         </span>
 
-        <h1 className="mt-4 text-2xl font-bold leading-tight text-cityzer-texto">
+        <h1 className="mt-4 text-2xl font-bold text-cityzer-texto">
           {ocorrencia.titulo}
         </h1>
 
@@ -81,11 +76,9 @@ function DetalhesOcorrencia({
           <h2 className="text-sm font-semibold text-cityzer-texto">
             Alerta publicado
           </h2>
-
           <p className="mt-1 text-xs leading-relaxed text-cityzer-suave">
-            Esta ocorrência atingiu o mínimo de
-            seis relatos distintos para aparecer
-            no mapa da comunidade.
+            Este registro atingiu o mínimo de seis
+            relatos de usuários diferentes.
           </p>
         </div>
       </div>
@@ -96,7 +89,6 @@ function DetalhesOcorrencia({
             size={18}
             className="text-cityzer-verde"
           />
-
           <h2 className="text-sm font-semibold text-cityzer-texto">
             Descrição
           </h2>
@@ -119,7 +111,6 @@ function DetalhesOcorrencia({
             size={18}
             className="text-cityzer-verde"
           />
-
           <h2 className="text-sm font-semibold text-cityzer-texto">
             Localização
           </h2>
@@ -156,35 +147,22 @@ function DetalhesOcorrencia({
             size={19}
             className="text-cityzer-verde"
           />
-
           <h2 className="text-sm font-semibold text-cityzer-texto">
             Verificação colaborativa
           </h2>
         </div>
 
         <p className="text-xs leading-relaxed text-cityzer-suave">
-          A verificação de permanência ainda está em
-          modo de demonstração. As respostas não
-          alteram o status real desta ocorrência.
+          Consulte o prazo de revisão e informe se o
+          problema continua no local.
         </p>
-
-        {jaRespondeu && (
-          <p className="mt-3 text-xs text-cityzer-verde">
-            Sua resposta de teste:{" "}
-            {respostaDemonstracao === "sim"
-              ? "Sim, continua"
-              : "Não, foi resolvido"}
-          </p>
-        )}
 
         <button
           type="button"
           onClick={onAbrirConfirmacao}
           className="mt-4 flex min-h-11 w-full items-center justify-between rounded-xl border border-cityzer-verde/40 bg-cityzer-fundo px-3 text-xs font-semibold text-cityzer-verde"
         >
-          {jaRespondeu
-            ? "Ver resposta de teste"
-            : "Verificar ocorrência (prévia)"}
+          Verificar ocorrência
           <ChevronRight size={18} />
         </button>
       </div>

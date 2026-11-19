@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   ArrowLeft,
   CheckCircle2,
-  CircleAlert,
   Clock3,
-  MapPin,
+  LoaderCircle,
   ShieldCheck,
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
+
+import {
+  consultarConfirmacao,
+  confirmarOcorrencia,
+} from "../../servicos/confirmacoes";
 
 import {
   CATEGORIAS_OCORRENCIAS,
@@ -17,39 +21,134 @@ import {
 
 function TelaConfirmacaoOcorrencia({
   ocorrencia,
-  respostaAnterior,
+  usuario,
   onVoltar,
-  onConfirmar,
+  onVoltarAoMapa,
 }) {
-  const [respostaSelecionada, setRespostaSelecionada] =
-    useState(null);
+  const [dados, setDados] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [resposta, setResposta] = useState("");
+  const [agora, setAgora] = useState(Date.now());
 
   const categoria = CATEGORIAS_OCORRENCIAS.find(
     (item) => item.id === ocorrencia.categoria
   );
 
-  const jaRespondeu = respostaAnterior !== null;
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      setAgora(Date.now());
+    }, 30000);
 
-  function confirmarResposta() {
-    if (!respostaSelecionada || jaRespondeu) return;
+    return () => clearInterval(intervalo);
+  }, []);
 
-    onConfirmar(respostaSelecionada);
+  useEffect(() => {
+    if (!usuario?.id) {
+      setCarregando(false);
+      return;
+    }
+
+    let ativo = true;
+
+    setCarregando(true);
+    setErro("");
+
+    consultarConfirmacao(ocorrencia.id)
+      .then((resultado) => {
+        if (ativo) setDados(resultado);
+      })
+      .catch((error) => {
+        if (ativo) {
+          setErro(
+            error.message ||
+              "Não foi possível carregar a verificação."
+          );
+        }
+      })
+      .finally(() => {
+        if (ativo) setCarregando(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [ocorrencia.id, usuario?.id]);
+
+  const removida = dados?.status === "removida";
+  const jaConfirmou = Boolean(dados?.minhaResposta);
+
+  const prazo =
+    dados?.revisaoDisponivelEm
+      ? new Date(dados.revisaoDisponivelEm)
+      : null;
+
+  const prazoValido =
+    prazo && !Number.isNaN(prazo.getTime());
+
+  const liberada =
+    dados?.status === "publicada" &&
+    prazoValido &&
+    agora >= prazo.getTime();
+
+  const podeResponder =
+    Boolean(usuario?.id) &&
+    liberada &&
+    !jaConfirmou &&
+    !enviando;
+
+  async function registrarResposta() {
+    if (!podeResponder || !resposta) return;
+
+    setEnviando(true);
+    setErro("");
+    setMensagem("");
+
+    try {
+      const resultado = await confirmarOcorrencia(
+        ocorrencia.id,
+        resposta
+      );
+
+      setDados(resultado);
+      setResposta("");
+
+      setMensagem(
+        resultado.status === "removida"
+          ? "A terceira confirmação negativa foi registrada. O alerta foi removido do mapa."
+          : "Sua confirmação foi registrada com sucesso."
+      );
+    } catch (error) {
+      setErro(
+        error.message ||
+          "Não foi possível registrar sua confirmação."
+      );
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  function voltar() {
+    if (removida) {
+      onVoltarAoMapa();
+    } else {
+      onVoltar();
+    }
   }
 
   return (
     <section className="flex min-h-full flex-col bg-cityzer-fundo px-5 pb-7 pt-4">
-
-      {/* Navegação */}
       <button
         type="button"
-        onClick={onVoltar}
-        className="flex w-fit cursor-pointer items-center gap-2 text-sm text-cityzer-suave hover:text-cityzer-verde"
+        onClick={voltar}
+        className="flex w-fit items-center gap-2 text-sm text-cityzer-suave hover:text-cityzer-verde"
       >
         <ArrowLeft size={18} />
-        Voltar aos detalhes
+        {removida ? "Voltar ao mapa" : "Voltar aos detalhes"}
       </button>
 
-      {/* Cabeçalho */}
       <div className="mb-6 mt-7">
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cityzer-verde/30 bg-cityzer-verde/10">
           <ShieldCheck
@@ -58,222 +157,246 @@ function TelaConfirmacaoOcorrencia({
           />
         </div>
 
-        <h1 className="text-2xl font-bold tracking-tight text-cityzer-texto">
+        <h1 className="text-2xl font-bold text-cityzer-texto">
           Verificar ocorrência
           <span className="text-cityzer-verde">.</span>
         </h1>
 
         <p className="mt-3 text-sm leading-relaxed text-cityzer-suave">
-          A colaboração da comunidade ajuda a manter
-          as informações sobre as vias atualizadas.
+          Confirme se o problema ainda está presente na via.
         </p>
       </div>
 
-      {/* Ocorrência selecionada */}
       <div className="mb-5 rounded-2xl border border-white/10 bg-cityzer-superficie p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <MapPin
-            size={17}
-            className="text-cityzer-verde"
-          />
-
-          <span className="text-xs font-semibold text-cityzer-texto">
-            Ocorrência selecionada
-          </span>
-        </div>
-
-        <h2 className="text-base font-bold text-cityzer-texto">
-          {ocorrencia.titulo}
-        </h2>
-
-        <p className="mt-2 text-xs text-cityzer-suave">
+        <p className="text-xs font-semibold text-cityzer-verde">
           {categoria?.nome ?? "Ocorrência"}
         </p>
 
-        <p className="mt-3 text-xs leading-relaxed text-cityzer-suave">
+        <h2 className="mt-2 text-base font-bold text-cityzer-texto">
+          {ocorrencia.titulo}
+        </h2>
+
+        <p className="mt-3 wrap-break-word text-xs leading-relaxed text-cityzer-suave">
           {ocorrencia.descricao}
         </p>
       </div>
 
-      {/* Aviso */}
-      <div className="mb-6 flex items-start gap-2 rounded-xl border border-cityzer-ciano/25 bg-cityzer-ciano/10 p-3">
-        <Clock3
-          size={17}
-          className="mt-0.5 shrink-0 text-cityzer-ciano"
-        />
-
-        <p className="text-xs leading-relaxed text-cityzer-suave">
-          Esta é uma demonstração. A verificação
-          automática por tempo e localização ainda
-          não está implementada.
-        </p>
-      </div>
-
-      {jaRespondeu ? (
-        /* Resposta já testada nesta sessão */
-        <div
-          role="status"
-          className="flex flex-1 flex-col items-center justify-center text-center"
-        >
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-cityzer-verde/30 bg-cityzer-verde/10">
-            <CheckCircle2
-              size={34}
-              className="text-cityzer-verde"
-            />
-          </div>
-
-          <h2 className="text-xl font-bold text-cityzer-texto">
-            Resposta de teste registrada!
-          </h2>
-
-          <p className="mt-4 text-sm text-cityzer-suave">
-            Sua escolha nesta demonstração foi:
-          </p>
-
-          <p className="mt-3 text-lg font-bold text-cityzer-verde">
-            {respostaAnterior === "sim"
-              ? "Sim, continua"
-              : "Não, foi resolvido"}
-          </p>
-
-          <p className="mt-5 text-xs leading-relaxed text-cityzer-suave">
-            A resposta existe apenas enquanto
-            esta página estiver aberta.
-            Nenhum dado foi enviado ao servidor.
-          </p>
+      {carregando && (
+        <div className="flex items-center justify-center gap-2 py-8 text-sm text-cityzer-suave">
+          <LoaderCircle
+            size={19}
+            className="animate-spin text-cityzer-verde"
+          />
+          Consultando verificação...
         </div>
-      ) : (
-        /* Formulário de confirmação */
+      )}
+
+      {!usuario && (
+        <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200">
+          Entre na sua conta para confirmar ocorrências.
+        </p>
+      )}
+
+      {erro && (
+        <p
+          role="alert"
+          className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-relaxed text-red-300"
+        >
+          {erro}
+        </p>
+      )}
+
+      {mensagem && (
+        <p
+          role="status"
+          className="mb-4 rounded-xl border border-cityzer-verde/30 bg-cityzer-verde/10 p-3 text-xs leading-relaxed text-cityzer-verde"
+        >
+          {mensagem}
+        </p>
+      )}
+
+      {dados && (
         <>
-          <div className="mb-6">
-            <h2 className="text-lg font-bold leading-snug text-cityzer-texto">
-              O problema ainda continua no local?
-            </h2>
+          <div className="mb-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-cityzer-superficie p-4 text-center">
+              <ThumbsUp
+                size={23}
+                className="mx-auto text-cityzer-verde"
+              />
+              <p className="mt-3 text-2xl font-bold text-cityzer-texto">
+                {dados.totalSim}
+              </p>
+              <p className="mt-1 text-xs text-cityzer-suave">
+                Sim
+              </p>
+            </div>
 
-            <p className="mt-2 text-xs leading-relaxed text-cityzer-suave">
-              Selecione uma das opções abaixo.
-            </p>
+            <div className="rounded-2xl border border-white/10 bg-cityzer-superficie p-4 text-center">
+              <ThumbsDown
+                size={23}
+                className="mx-auto text-red-300"
+              />
+              <p className="mt-3 text-2xl font-bold text-cityzer-texto">
+                {dados.totalNao}/3
+              </p>
+              <p className="mt-1 text-xs text-cityzer-suave">
+                Não
+              </p>
+            </div>
           </div>
 
-          <div
-            role="group"
-            aria-label="Situação atual da ocorrência"
-            className="space-y-3"
-          >
-            {/* Resposta SIM */}
-            <button
-              type="button"
-              onClick={() => setRespostaSelecionada("sim")}
-              aria-pressed={respostaSelecionada === "sim"}
-              className={`flex w-full cursor-pointer items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${
-                respostaSelecionada === "sim"
-                  ? "border-cityzer-verde bg-cityzer-verde/15"
-                  : "border-white/15 bg-cityzer-superficie hover:border-cityzer-verde/40"
-              }`}
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cityzer-verde/10">
-                <ThumbsUp
-                  size={21}
-                  className="text-cityzer-verde"
-                />
-              </div>
-
-              <div className="min-w-0 flex-1">
+          {removida ? (
+            <div className="rounded-2xl border border-cityzer-verde/30 bg-cityzer-verde/10 p-4 text-center">
+              <CheckCircle2
+                size={30}
+                className="mx-auto text-cityzer-verde"
+              />
+              <h2 className="mt-3 text-lg font-bold text-cityzer-texto">
+                Alerta removido
+              </h2>
+              <p className="mt-2 text-xs leading-relaxed text-cityzer-suave">
+                Três usuários diferentes informaram que
+                o problema foi resolvido.
+              </p>
+            </div>
+          ) : jaConfirmou ? (
+            <div className="rounded-2xl border border-cityzer-verde/30 bg-cityzer-verde/10 p-4 text-center">
+              <CheckCircle2
+                size={30}
+                className="mx-auto text-cityzer-verde"
+              />
+              <h2 className="mt-3 text-lg font-bold text-cityzer-texto">
+                Você já confirmou
+              </h2>
+              <p className="mt-2 text-sm text-cityzer-suave">
+                Sua resposta:{" "}
+                <strong className="text-cityzer-texto">
+                  {dados.minhaResposta === "sim"
+                    ? "Sim, continua"
+                    : "Não, foi resolvido"}
+                </strong>
+              </p>
+            </div>
+          ) : !prazoValido ? (
+            <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+              <p className="text-sm font-semibold text-amber-200">
+                Prazo de verificação não definido
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-cityzer-suave">
+                Esta categoria ainda não possui um prazo
+                configurado para receber confirmações.
+              </p>
+            </div>
+          ) : !liberada ? (
+            <div className="flex items-start gap-3 rounded-xl border border-cityzer-ciano/30 bg-cityzer-ciano/10 p-4">
+              <Clock3
+                size={20}
+                className="shrink-0 text-cityzer-ciano"
+              />
+              <div>
                 <p className="text-sm font-semibold text-cityzer-texto">
-                  Sim, continua
+                  Aguardando prazo de verificação
                 </p>
-
-                <p className="mt-1 text-xs leading-relaxed text-cityzer-suave">
-                  O problema ainda está presente.
+                <p className="mt-2 text-xs leading-relaxed text-cityzer-suave">
+                  Disponível a partir de{" "}
+                  {prazo.toLocaleString("pt-BR")}.
                 </p>
               </div>
+            </div>
+          ) : (
+            <>
+              <h2 className="mb-4 text-lg font-bold text-cityzer-texto">
+                O problema ainda continua no local?
+              </h2>
 
               <div
-                aria-hidden="true"
-                className={`h-4 w-4 shrink-0 rounded-full border-2 ${
-                  respostaSelecionada === "sim"
-                    ? "border-cityzer-verde bg-cityzer-verde"
-                    : "border-white/30"
-                }`}
-              />
-            </button>
-
-            {/* Resposta NÃO */}
-            <button
-              type="button"
-              onClick={() => setRespostaSelecionada("nao")}
-              aria-pressed={respostaSelecionada === "nao"}
-              className={`flex w-full cursor-pointer items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${
-                respostaSelecionada === "nao"
-                  ? "border-cityzer-verde bg-cityzer-verde/15"
-                  : "border-white/15 bg-cityzer-superficie hover:border-cityzer-verde/40"
-              }`}
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cityzer-verde/10">
-                <ThumbsDown
-                  size={21}
-                  className="text-cityzer-verde"
-                />
+                role="group"
+                aria-label="Situação atual da ocorrência"
+                className="space-y-3"
+              >
+                {[
+                  {
+                    valor: "sim",
+                    titulo: "Sim, continua",
+                    texto: "O problema ainda está presente.",
+                    Icone: ThumbsUp,
+                  },
+                  {
+                    valor: "nao",
+                    titulo: "Não, foi resolvido",
+                    texto: "O problema não está mais presente.",
+                    Icone: ThumbsDown,
+                  },
+                ].map((opcao) => (
+                  <button
+                    key={opcao.valor}
+                    type="button"
+                    onClick={() => setResposta(opcao.valor)}
+                    aria-pressed={resposta === opcao.valor}
+                    disabled={enviando}
+                    className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${
+                      resposta === opcao.valor
+                        ? "border-cityzer-verde bg-cityzer-verde/15"
+                        : "border-white/15 bg-cityzer-superficie"
+                    }`}
+                  >
+                    <opcao.Icone
+                      size={22}
+                      className="shrink-0 text-cityzer-verde"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-cityzer-texto">
+                        {opcao.titulo}
+                      </p>
+                      <p className="mt-1 text-xs text-cityzer-suave">
+                        {opcao.texto}
+                      </p>
+                    </div>
+                    <span
+                      aria-hidden="true"
+                      className={`h-4 w-4 shrink-0 rounded-full border-2 ${
+                        resposta === opcao.valor
+                          ? "border-cityzer-verde bg-cityzer-verde"
+                          : "border-white/30"
+                      }`}
+                    />
+                  </button>
+                ))}
               </div>
 
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-cityzer-texto">
-                  Não, foi resolvido
-                </p>
-
-                <p className="mt-1 text-xs leading-relaxed text-cityzer-suave">
-                  O problema não está mais presente.
-                </p>
-              </div>
-
-              <div
-                aria-hidden="true"
-                className={`h-4 w-4 shrink-0 rounded-full border-2 ${
-                  respostaSelecionada === "nao"
-                    ? "border-cityzer-verde bg-cityzer-verde"
-                    : "border-white/30"
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Informação sobre a regra futura */}
-          <div className="mt-6 flex items-start gap-2 rounded-xl border border-white/10 p-3">
-            <CircleAlert
-              size={17}
-              className="mt-0.5 shrink-0 text-cityzer-suave"
-            />
-
-            <p className="text-xs leading-relaxed text-cityzer-suave">
-              Na versão funcional, três respostas
-              negativas de usuários diferentes
-              poderão retirar o alerta do mapa,
-              conforme as regras de validação.
-            </p>
-          </div>
-
-          {/* Confirmar */}
-          <button
-            type="button"
-            onClick={confirmarResposta}
-            disabled={!respostaSelecionada}
-            className="mt-7 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-cityzer-verde px-4 text-sm font-semibold text-cityzer-fundo transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <CheckCircle2 size={18} />
-            Confirmar resposta de teste
-          </button>
+              <button
+                type="button"
+                disabled={!resposta || enviando}
+                onClick={registrarResposta}
+                className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cityzer-verde px-4 text-sm font-semibold text-cityzer-fundo disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {enviando ? (
+                  <>
+                    <LoaderCircle
+                      size={18}
+                      className="animate-spin"
+                    />
+                    Registrando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={18} />
+                    Confirmar resposta
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </>
       )}
 
-      {jaRespondeu && (
-        <button
-          type="button"
-          onClick={onVoltar}
-          className="mt-6 min-h-12 w-full cursor-pointer rounded-xl bg-cityzer-verde text-sm font-semibold text-cityzer-fundo"
-        >
-          Voltar aos detalhes
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={voltar}
+        className="mt-6 min-h-12 w-full rounded-xl border border-cityzer-verde/40 text-sm font-semibold text-cityzer-verde"
+      >
+        {removida ? "Voltar ao mapa" : "Voltar aos detalhes"}
+      </button>
     </section>
   );
 }

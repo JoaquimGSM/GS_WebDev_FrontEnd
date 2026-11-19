@@ -22,7 +22,8 @@ import TelaConfirmacaoOcorrencia from "./TelaConfirmacaoOcorrencia";
 function Aplicativo() {
   const [telaAtual, setTelaAtual] = useState("boas-vindas");
   const [usuario, setUsuario] = useState(null);
-  const [carregandoSessao, setCarregandoSessao] = useState(true);
+  const [carregandoSessao, setCarregandoSessao] =
+    useState(true);
   const [erroSessao, setErroSessao] = useState("");
 
   const [localizacaoSelecionada, setLocalizacaoSelecionada] =
@@ -41,8 +42,6 @@ function Aplicativo() {
     useState(false);
 
   const [erroMinhas, setErroMinhas] = useState("");
-  const [respostasDemonstracao, setRespostasDemonstracao] =
-    useState({});
 
   useEffect(() => {
     const {
@@ -64,7 +63,9 @@ function Aplicativo() {
 
         if (evento === "SIGNED_IN" && usuarioAtual) {
           setTelaAtual((atual) =>
-            ["boas-vindas", "login", "cadastro"].includes(atual)
+            ["boas-vindas", "login", "cadastro"].includes(
+              atual
+            )
               ? "mapa"
               : atual
           );
@@ -76,7 +77,6 @@ function Aplicativo() {
           setLocalizacaoSelecionada(null);
           setOcorrenciaSelecionada(null);
           setMinhasOcorrencias([]);
-          setRespostasDemonstracao({});
           setErroMinhas("");
           setErroSessao("");
         }
@@ -98,9 +98,7 @@ function Aplicativo() {
 
     listarMinhasOcorrencias(usuario.id)
       .then((registros) => {
-        if (ativo) {
-          setMinhasOcorrencias(registros);
-        }
+        if (ativo) setMinhasOcorrencias(registros);
       })
       .catch((error) => {
         if (ativo) {
@@ -111,19 +109,13 @@ function Aplicativo() {
         }
       })
       .finally(() => {
-        if (ativo) {
-          setCarregandoMinhas(false);
-        }
+        if (ativo) setCarregandoMinhas(false);
       });
 
     return () => {
       ativo = false;
     };
   }, [telaAtual, usuario?.id]);
-
-  const respostaDaOcorrencia = ocorrenciaSelecionada
-    ? respostasDemonstracao[ocorrenciaSelecionada.id] ?? null
-    : null;
 
   function navegarPara(tela) {
     setTelaAtual(tela);
@@ -168,7 +160,9 @@ function Aplicativo() {
 
   async function salvarNovaOcorrencia(dados) {
     if (!usuario) {
-      throw new Error("Faça login para registrar ocorrências.");
+      throw new Error(
+        "Faça login para registrar ocorrências."
+      );
     }
 
     const registro = await criarOcorrencia(usuario, dados);
@@ -208,7 +202,9 @@ function Aplicativo() {
     await excluirOcorrencia(usuario.id, id);
 
     setMinhasOcorrencias((anteriores) =>
-      anteriores.filter((ocorrencia) => ocorrencia.id !== id)
+      anteriores.filter(
+        (ocorrencia) => ocorrencia.id !== id
+      )
     );
   }
 
@@ -220,32 +216,6 @@ function Aplicativo() {
   function abrirConfirmacao() {
     if (!ocorrenciaSelecionada) return;
     setTelaAtual("confirmacao");
-  }
-
-  function confirmarDemonstracao(resposta) {
-    if (!ocorrenciaSelecionada) return;
-
-    if (resposta !== "sim" && resposta !== "nao") {
-      return;
-    }
-
-    const id = ocorrenciaSelecionada.id;
-
-    setRespostasDemonstracao((anteriores) => {
-      if (
-        Object.prototype.hasOwnProperty.call(
-          anteriores,
-          id
-        )
-      ) {
-        return anteriores;
-      }
-
-      return {
-        ...anteriores,
-        [id]: resposta,
-      };
-    });
   }
 
   function renderizarMapa() {
@@ -271,7 +241,6 @@ function Aplicativo() {
     return (
       <DetalhesOcorrencia
         ocorrencia={ocorrenciaSelecionada}
-        respostaDemonstracao={respostaDaOcorrencia}
         onVoltar={voltarParaMapa}
         onAbrirConfirmacao={abrirConfirmacao}
       />
@@ -285,6 +254,7 @@ function Aplicativo() {
           size={32}
           className="animate-spin text-cityzer-verde"
         />
+
         <p className="text-sm text-cityzer-suave">
           Verificando sua sessão...
         </p>
@@ -351,9 +321,9 @@ function Aplicativo() {
       return ocorrenciaSelecionada ? (
         <TelaConfirmacaoOcorrencia
           ocorrencia={ocorrenciaSelecionada}
-          respostaAnterior={respostaDaOcorrencia}
+          usuario={usuario}
           onVoltar={voltarParaDetalhes}
-          onConfirmar={confirmarDemonstracao}
+          onVoltarAoMapa={voltarParaMapa}
         />
       ) : (
         renderizarMapa()

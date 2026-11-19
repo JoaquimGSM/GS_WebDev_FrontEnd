@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 
-import { supabase } from "../../servicos/supabase";
+import useAutenticacao from "../../hooks/useAutenticacao";
 
 import {
   listarMinhasOcorrencias,
@@ -20,71 +20,55 @@ import TelaMinhasOcorrencias from "./TelaMinhasOcorrencias";
 import TelaConfirmacaoOcorrencia from "./TelaConfirmacaoOcorrencia";
 
 function Aplicativo() {
-  const [telaAtual, setTelaAtual] = useState("boas-vindas");
-  const [usuario, setUsuario] = useState(null);
-  const [carregandoSessao, setCarregandoSessao] =
-    useState(true);
-  const [erroSessao, setErroSessao] = useState("");
+  const {
+    usuario,
+    carregandoSessao,
+    erroSessao,
+    eventoAutenticacao,
+    sairDaConta,
+  } = useAutenticacao();
 
+  const [telaAtual, setTelaAtual] = useState("boas-vindas");
   const [localizacaoSelecionada, setLocalizacaoSelecionada] =
     useState(null);
-
   const [ocorrenciaSelecionada, setOcorrenciaSelecionada] =
     useState(null);
-
-  const [categoriaAtiva, setCategoriaAtiva] =
-    useState("todos");
-
+  const [categoriaAtiva, setCategoriaAtiva] = useState("todos");
   const [minhasOcorrencias, setMinhasOcorrencias] =
     useState([]);
-
   const [carregandoMinhas, setCarregandoMinhas] =
     useState(false);
-
   const [erroMinhas, setErroMinhas] = useState("");
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (evento, sessao) => {
-        const usuarioAtual = sessao?.user ?? null;
+    if (
+      eventoAutenticacao === "INITIAL_SESSION" &&
+      usuario?.id
+    ) {
+      setTelaAtual("mapa");
+      return;
+    }
 
-        setUsuario(usuarioAtual);
-        setCarregandoSessao(false);
+    if (
+      eventoAutenticacao === "SIGNED_IN" &&
+      usuario?.id
+    ) {
+      setTelaAtual((atual) =>
+        ["boas-vindas", "login", "cadastro"].includes(atual)
+          ? "mapa"
+          : atual
+      );
+      return;
+    }
 
-        if (
-          evento === "INITIAL_SESSION" &&
-          usuarioAtual
-        ) {
-          setTelaAtual("mapa");
-          setErroSessao("");
-        }
-
-        if (evento === "SIGNED_IN" && usuarioAtual) {
-          setTelaAtual((atual) =>
-            ["boas-vindas", "login", "cadastro"].includes(
-              atual
-            )
-              ? "mapa"
-              : atual
-          );
-          setErroSessao("");
-        }
-
-        if (evento === "SIGNED_OUT") {
-          setTelaAtual("boas-vindas");
-          setLocalizacaoSelecionada(null);
-          setOcorrenciaSelecionada(null);
-          setMinhasOcorrencias([]);
-          setErroMinhas("");
-          setErroSessao("");
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
+    if (eventoAutenticacao === "SIGNED_OUT") {
+      setTelaAtual("boas-vindas");
+      setLocalizacaoSelecionada(null);
+      setOcorrenciaSelecionada(null);
+      setMinhasOcorrencias([]);
+      setErroMinhas("");
+    }
+  }, [eventoAutenticacao, usuario?.id]);
 
   useEffect(() => {
     if (telaAtual !== "minhas" || !usuario?.id) {
@@ -98,7 +82,9 @@ function Aplicativo() {
 
     listarMinhasOcorrencias(usuario.id)
       .then((registros) => {
-        if (ativo) setMinhasOcorrencias(registros);
+        if (ativo) {
+          setMinhasOcorrencias(registros);
+        }
       })
       .catch((error) => {
         if (ativo) {
@@ -109,7 +95,9 @@ function Aplicativo() {
         }
       })
       .finally(() => {
-        if (ativo) setCarregandoMinhas(false);
+        if (ativo) {
+          setCarregandoMinhas(false);
+        }
       });
 
     return () => {
@@ -131,26 +119,6 @@ function Aplicativo() {
 
   function voltarParaDetalhes() {
     setTelaAtual("detalhes");
-  }
-
-  async function sairDaConta() {
-    setErroSessao("");
-
-    try {
-      const { error } = await supabase.auth.signOut({
-        scope: "local",
-      });
-
-      if (error) throw error;
-
-      setUsuario(null);
-      setTelaAtual("boas-vindas");
-      setMinhasOcorrencias([]);
-    } catch (error) {
-      setErroSessao(
-        error.message || "Não foi possível sair."
-      );
-    }
   }
 
   function iniciarRegistro(localizacao) {
@@ -254,7 +222,6 @@ function Aplicativo() {
           size={32}
           className="animate-spin text-cityzer-verde"
         />
-
         <p className="text-sm text-cityzer-suave">
           Verificando sua sessão...
         </p>

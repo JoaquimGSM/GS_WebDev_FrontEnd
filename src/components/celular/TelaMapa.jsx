@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   MapContainer,
@@ -20,12 +20,8 @@ import {
   X,
 } from "lucide-react";
 
-import {
-  obterCidadePerfil,
-  listarOcorrenciasPublicadas,
-  listarOcorrenciasPendentes,
-  adicionarRelato,
-} from "../../servicos/ocorrencias";
+import { adicionarRelato } from "../../servicos/ocorrencias";
+import useOcorrenciasMapa from "../../hooks/useOcorrenciasMapa";
 
 import {
   CATEGORIAS_OCORRENCIAS,
@@ -36,9 +32,9 @@ import PainelRelatos from "./PainelRelatos";
 
 const CENTROS = {
   "São Paulo": [-23.5505, -46.6333],
-  Cotia: [-23.6022, -46.9190],
+  Cotia: [-23.6022, -46.919],
   Itapevi: [-23.5489, -46.9345],
-  Barueri: [-23.5117, -46.8760],
+  Barueri: [-23.5117, -46.876],
   Osasco: [-23.5327, -46.7917],
   Carapicuíba: [-23.5235, -46.8407],
   "Santana de Parnaíba": [-23.4445, -46.9178],
@@ -70,63 +66,21 @@ function TelaMapa({
   categoriaAtiva,
   onAlterarCategoria,
 }) {
-  const [cidade, setCidade] = useState("São Paulo");
-  const [publicadas, setPublicadas] = useState([]);
-  const [pendentes, setPendentes] = useState([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState("");
-  const [atualizacao, setAtualizacao] = useState(0);
+  const {
+    cidade,
+    publicadas,
+    pendentes,
+    carregando,
+    erro,
+    atualizarDados,
+  } = useOcorrenciasMapa(usuario?.id);
 
   const [modoSelecao, setModoSelecao] = useState(false);
   const [localSelecionado, setLocalSelecionado] = useState(null);
   const [mostrarPainel, setMostrarPainel] = useState(false);
-
   const [processandoId, setProcessandoId] = useState(null);
   const [erroRelato, setErroRelato] = useState("");
   const [mensagemRelato, setMensagemRelato] = useState("");
-
-  useEffect(() => {
-    let ativo = true;
-
-    async function carregarDados() {
-      setCarregando(true);
-      setErro("");
-
-      try {
-        const cidadeAtual = usuario?.id
-          ? await obterCidadePerfil(usuario.id)
-          : "São Paulo";
-
-        const [listaPublicadas, listaPendentes] =
-          await Promise.all([
-            listarOcorrenciasPublicadas(cidadeAtual),
-            usuario?.id
-              ? listarOcorrenciasPendentes()
-              : Promise.resolve([]),
-          ]);
-
-        if (!ativo) return;
-
-        setCidade(cidadeAtual);
-        setPublicadas(listaPublicadas);
-        setPendentes(listaPendentes);
-      } catch (error) {
-        if (!ativo) return;
-
-        setErro(
-          error.message || "Não foi possível carregar o mapa."
-        );
-      } finally {
-        if (ativo) setCarregando(false);
-      }
-    }
-
-    carregarDados();
-
-    return () => {
-      ativo = false;
-    };
-  }, [usuario?.id, atualizacao]);
 
   const ocorrenciasFiltradas =
     categoriaAtiva === "todos"
@@ -137,10 +91,7 @@ function TelaMapa({
         );
 
   const centro = CENTROS[cidade] ?? CENTROS["São Paulo"];
-
-  function atualizarDados() {
-    setAtualizacao((anterior) => anterior + 1);
-  }
+  const botaoSair = Boolean(onSair) && !modoSelecao;
 
   function iniciarSelecao() {
     setModoSelecao(true);
@@ -168,6 +119,7 @@ function TelaMapa({
 
   function continuarRegistro() {
     if (!localSelecionado) return;
+
     onRegistrar(localSelecionado);
   }
 
@@ -205,8 +157,6 @@ function TelaMapa({
     );
   }
 
-  const botaoSair = Boolean(onSair) && !modoSelecao;
-
   return (
     <section className="flex h-full min-h-0 flex-col bg-cityzer-fundo">
       <header className="relative z-10 flex shrink-0 items-center gap-3 border-b border-white/10 bg-cityzer-superficie px-4 py-3">
@@ -233,6 +183,7 @@ function TelaMapa({
           <h1 className="text-base font-bold text-cityzer-texto">
             {modoSelecao ? "Selecionar local" : "Mapa Cityzer"}
           </h1>
+
           <p className="flex items-center gap-1 text-xs text-cityzer-suave">
             <MapPin size={12} />
             {cidade}

@@ -55,14 +55,16 @@ function validarCampos(dados) {
   }
 
   if ((dados.referencia ?? "").trim().length > 80) {
-    throw new Error("A referência pode ter até 80 caracteres.");
+    throw new Error(
+      "A referência pode conter até 80 caracteres."
+    );
   }
 
   const tamanho = (dados.descricao ?? "").trim().length;
 
   if (tamanho < 10 || tamanho > 300) {
     throw new Error(
-      "A descrição deve ter entre 10 e 300 caracteres."
+      "A descrição deve conter entre 10 e 300 caracteres."
     );
   }
 }
@@ -76,6 +78,18 @@ export async function listarMinhasOcorrencias(usuarioId) {
     .from("ocorrencias")
     .select(COLUNAS)
     .eq("autor_id", usuarioId)
+    .order("criada_em", { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map(normalizarOcorrencia);
+}
+
+export async function listarOcorrenciasPublicadas() {
+  const { data, error } = await supabase
+    .from("ocorrencias")
+    .select(COLUNAS)
+    .eq("status", "publicada")
     .order("criada_em", { ascending: false });
 
   if (error) throw error;
@@ -105,21 +119,28 @@ export async function criarOcorrencia(usuario, dados) {
     throw new Error("Localização inválida.");
   }
 
-  const cidade = usuario.user_metadata?.cidade?.trim();
+  const { data: perfil, error: erroPerfil } =
+    await supabase
+      .from("perfis")
+      .select("cidade")
+      .eq("id", usuario.id)
+      .single();
 
-  if (!cidade || cidade.length < 2 || cidade.length > 120) {
-    throw new Error("Cidade não encontrada no cadastro.");
+  if (erroPerfil || !perfil?.cidade) {
+    throw new Error(
+      "Não foi possível identificar a cidade do seu perfil."
+    );
   }
 
   const { data, error } = await supabase
     .from("ocorrencias")
     .insert({
       autor_id: usuario.id,
-      cidade,
+      cidade: perfil.cidade,
       categoria: dados.categoria,
       latitude,
       longitude,
-      referencia: dados.referencia.trim(),
+      referencia: (dados.referencia ?? "").trim(),
       descricao: dados.descricao.trim(),
     })
     .select(COLUNAS)
@@ -145,16 +166,22 @@ export async function atualizarOcorrencia(
     .from("ocorrencias")
     .update({
       categoria: alteracoes.categoria,
-      referencia: alteracoes.referencia.trim(),
+      referencia: (alteracoes.referencia ?? "").trim(),
       descricao: alteracoes.descricao.trim(),
-      atualizada_em: new Date().toISOString(),
     })
     .eq("id", ocorrenciaId)
     .eq("autor_id", usuarioId)
+    .eq("status", "pendente")
     .select(COLUNAS)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+
+  if (!data) {
+    throw new Error(
+      "Ocorrência não encontrada ou edição não permitida."
+    );
+  }
 
   return normalizarOcorrencia(data);
 }
@@ -172,6 +199,7 @@ export async function excluirOcorrencia(
     .delete()
     .eq("id", ocorrenciaId)
     .eq("autor_id", usuarioId)
+    .eq("status", "pendente")
     .select("id")
     .maybeSingle();
 
@@ -179,7 +207,7 @@ export async function excluirOcorrencia(
 
   if (!data) {
     throw new Error(
-      "Ocorrência não encontrada ou acesso não permitido."
+      "Ocorrência não encontrada ou exclusão não permitida."
     );
   }
 
